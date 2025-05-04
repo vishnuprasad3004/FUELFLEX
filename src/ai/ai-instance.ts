@@ -6,18 +6,20 @@ import {googleAI} from '@genkit-ai/googleai';
 const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
 
 if (!googleApiKey) {
-  console.warn(`
+  console.error(`
     ****************************************************************************************
-    * WARNING: GOOGLE_GENAI_API_KEY environment variable not set.                        *
+    * ERROR: GOOGLE_GENAI_API_KEY environment variable not set!                            *
     *                                                                                      *
-    * The AI pricing feature requires a Google AI API key.                                 *
+    * The AI pricing feature requires a valid Google AI API key to function.               *
+    * Pricing will likely fail or use a fallback mechanism until the key is provided.     *
+    *                                                                                      *
     * Please create a .env file in the project root and add the following line:          *
     * GOOGLE_GENAI_API_KEY=YOUR_API_KEY_HERE                                               *
     *                                                                                      *
     * Get your key from Google AI Studio: https://aistudio.google.com/app/apikey         *
     * Or from Google Cloud: https://console.cloud.google.com/apis/credentials             *
     *                                                                                      *
-    * The application might fail to estimate prices until the key is provided.           *
+    * Restart your development server after adding the key to the .env file.               *
     ****************************************************************************************
   `);
 }
@@ -27,7 +29,11 @@ export const ai = genkit({
   promptDir: './prompts',
   plugins: [
     googleAI({
-      apiKey: googleApiKey, // Explicitly pass the key from the environment variable
+      // Use the key from the environment variable. If it's undefined,
+      // googleAI plugin will internally look for GOOGLE_API_KEY/GEMINI_API_KEY,
+      // but explicitly passing it helps clarity and avoids ambiguity.
+      // It will result in an error later if the key is truly missing/invalid.
+      apiKey: googleApiKey,
     }),
   ],
   model: 'googleai/gemini-2.0-flash', // Using gemini-flash as default

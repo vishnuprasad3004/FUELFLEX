@@ -2,8 +2,9 @@
 'use server';
 /**
  * @fileOverview An AI-powered pricing model that dynamically adjusts transport costs for India.
+ * Provides a fallback calculation if the AI model fails or is unavailable.
  *
- * - calculatePrice - A function that calculates the price based on distance, load, and fuel rates.
+ * - calculatePrice - A function that calculates the price based on distance, load, and fuel rates. Uses AI first, then fallback.
  * - CalculatePriceInput - The input type for the calculatePrice function.
  * - CalculatePriceOutput - The return type for the calculatePrice function.
  */
@@ -26,10 +27,13 @@ const CalculatePriceOutputSchema = z.object({
   estimatedPrice: z
     .number()
     .describe('The estimated price for the transport, in INR (Indian Rupees).'),
-  breakdown: z.string().describe('A detailed breakdown of the price calculation in INR, or an error message if estimation failed.'),
+  breakdown: z.string().describe('A detailed breakdown of the price calculation in INR, or an error/fallback message.'),
   currency: z.string().describe('The currency code (e.g., INR).').default('INR'),
 });
 export type CalculatePriceOutput = z.infer<typeof CalculatePriceOutputSchema>;
+
+// Define the fallback rate per kilometer
+const FALLBACK_RATE_PER_KM = 150; // INR
 
 export async function calculatePrice(input: CalculatePriceInput): Promise<CalculatePriceOutput> {
   // Input validation (basic)
@@ -100,6 +104,18 @@ const pricingPrompt = ai.definePrompt({
   `,
 });
 
+// Helper function to calculate and format fallback price
+const calculateFallbackPrice = (distanceKm: number): CalculatePriceOutput => {
+    const fallbackPrice = distanceKm * FALLBACK_RATE_PER_KM;
+    const roundedFallbackPrice = Math.round(fallbackPrice);
+    console.log(`[CalculatePriceFlow] Using fallback rate: ${distanceKm.toFixed(2)} km * ${FALLBACK_RATE_PER_KM} INR/km = ${roundedFallbackPrice} INR`);
+    return {
+      estimatedPrice: roundedFallbackPrice,
+      breakdown: `AI estimation failed or is unavailable (check API key/configuration). Using fallback rate of ${FALLBACK_RATE_PER_KM} INR/km. Total distance: ${distanceKm.toFixed(2)} km.`,
+      currency: 'INR',
+    };
+}
+
 const calculatePriceFlow = ai.defineFlow<
   typeof CalculatePriceInputSchema,
   typeof CalculatePriceOutputSchema
@@ -124,12 +140,19 @@ const calculatePriceFlow = ai.defineFlow<
         )
      ]);
      console.log('[CalculatePriceFlow] Fetched data:', { fuelInfo, distanceInfo });
+
+     // Basic check for valid distance
+     if (!distanceInfo || typeof distanceInfo.distanceKm !== 'number' || distanceInfo.distanceKm < 0) {
+       throw new Error("Invalid distance data received from service.");
+     }
+
   } catch (error: any) {
       console.error("[CalculatePriceFlow] Error fetching service data:", error);
       const serviceError = error instanceof Error ? error.message : "Unknown service error";
+      // Cannot calculate fallback without distance, so return an error.
       return {
          estimatedPrice: 0,
-         breakdown: `Error calculating price: Failed to fetch necessary data (${serviceError}). Please try again later.`,
+         breakdown: `Error calculating price: Failed to fetch necessary data (${serviceError}). Unable to calculate fallback. Please try again later.`,
          currency: "INR",
        };
   }
@@ -158,15 +181,16 @@ const calculatePriceFlow = ai.defineFlow<
       const {output} = await pricingPrompt(promptInput);
       console.log('[CalculatePriceFlow] Received AI prompt output:', output);
 
-      // More robust check for valid output format
-      if (!output || typeof output.estimatedPrice !== 'number' || output.estimatedPrice < 0 || typeof output.breakdown !== 'string' || !output.breakdown.trim()) {
-          console.error("[CalculatePriceFlow] AI response format invalid or missing required fields:", output);
-          throw new Error("AI model returned an invalid or incomplete response structure.");
+      // More robust check for valid output format from AI
+      if (!output || typeof output.estimatedPrice !== 'number' || output.estimatedPrice <= 0 || typeof output.breakdown !== 'string' || !output.breakdown.trim()) {
+          console.warn("[CalculatePriceFlow] AI response format invalid, missing required fields, or price <= 0:", output);
+          // Use fallback if AI response is invalid or yields non-positive price
+          return calculateFallbackPrice(distanceInfo.distanceKm);
       }
 
-       // Round the estimated price to the nearest whole number
+       // Round the estimated price from AI to the nearest whole number
        const roundedPrice = Math.round(output.estimatedPrice);
-       console.log(`[CalculatePriceFlow] Original price: ${output.estimatedPrice}, Rounded price: ${roundedPrice}`);
+       console.log(`[CalculatePriceFlow] AI Original price: ${output.estimatedPrice}, Rounded price: ${roundedPrice}`);
 
       return {
           estimatedPrice: roundedPrice,
@@ -176,10 +200,29 @@ const calculatePriceFlow = ai.defineFlow<
   } catch (aiError: any) {
        console.error("[CalculatePriceFlow] Error getting response from AI prompt:", aiError);
        const aiErrorMessage = aiError instanceof Error ? aiError.message : "Unknown AI error";
-       return {
-         estimatedPrice: 0,
-         breakdown: `Error calculating price: AI model failed to generate a valid estimate (${aiErrorMessage}). Please try again later.`,
-         currency: "INR",
-       };
+
+       // Check if the error is related to API key validity
+       const isApiKeyError = aiErrorMessage.includes('API_KEY_INVALID') ||
+                             aiErrorMessage.includes('API key not valid') ||
+                             aiErrorMessage.includes('Please pass in the API key') ||
+                             aiErrorMessage.includes('FAILED_PRECONDITION'); // Include FAILED_PRECONDITION check
+
+       if (isApiKeyError) {
+         console.warn("[CalculatePriceFlow] API Key error detected. Using fallback calculation.");
+         return calculateFallbackPrice(distanceInfo.distanceKm);
+       } else {
+         // For other AI errors, still use fallback as estimation failed
+         console.warn("[CalculatePriceFlow] Non-API key AI error occurred. Using fallback calculation.");
+         // Optionally, could provide a slightly different breakdown message here
+         const fallbackResult = calculateFallbackPrice(distanceInfo.distanceKm);
+         fallbackResult.breakdown = `AI estimation failed (${aiErrorMessage}). Using fallback rate of ${FALLBACK_RATE_PER_KM} INR/km. Total distance: ${distanceInfo.distanceKm.toFixed(2)} km.`;
+         return fallbackResult;
+        // Or, if preferred, return a generic error without fallback for non-key errors:
+        // return {
+        //   estimatedPrice: 0,
+        //   breakdown: `Error calculating price: AI model failed (${aiErrorMessage}). Fallback not applicable for this error. Please try again later.`,
+        //   currency: "INR",
+        // };
+       }
   }
 });

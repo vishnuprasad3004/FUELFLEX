@@ -5,7 +5,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { MapPin, Package, Calendar, Clock, Truck, Building, Home, CircleDollarSign, Loader2, IndianRupee, AlertCircle } from "lucide-react"; // Added AlertCircle
+import { MapPin, Package, Calendar, Clock, Truck, Building, Home, CircleDollarSign, Loader2, IndianRupee, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -146,20 +146,34 @@ export function BookingForm() {
 
       setPriceResult(result);
 
-      // Check if the AI returned an error state (estimatedPrice 0 and breakdown contains "Error")
-       if (result.estimatedPrice === 0 && result.breakdown.toLowerCase().includes('error')) {
-           // Provide a more specific message if it seems like an API key issue
-           const detailedError = result.breakdown.includes('GOOGLE_API_KEY') || result.breakdown.includes('API key')
-             ? "AI configuration error. Please ensure the API key is set correctly."
-             : result.breakdown; // Use the error from AI otherwise
+      // Check if the AI/Fallback returned an error or a fallback message
+       if (result.estimatedPrice <= 0 && result.breakdown.toLowerCase().includes('error')) {
+           // Specific handling for API key errors visible in breakdown
+           const isApiKeyError = result.breakdown.includes('API_KEY_INVALID') ||
+                                 result.breakdown.includes('API key not valid') ||
+                                 result.breakdown.includes('Please pass in the API key') ||
+                                 result.breakdown.includes('FAILED_PRECONDITION');
+
+           const detailedError = isApiKeyError
+             ? "AI configuration error: Invalid or missing API key. Please ensure GOOGLE_GENAI_API_KEY is set correctly in your environment."
+             : result.breakdown; // Use the error from AI/flow otherwise
+
            setSubmissionError(detailedError);
            toast({
                variant: "destructive",
                title: "Price Estimation Failed",
                description: detailedError,
            });
+       } else if (result.breakdown.toLowerCase().includes('fallback rate')) {
+            // Handle successful fallback case - show the result, maybe with a specific toast
+            toast({
+              title: "Price Estimated (Fallback Rate)",
+              description: `AI unavailable, used fallback rate. Est: ₹${result.estimatedPrice.toLocaleString('en-IN')}`,
+              variant: "default", // Or maybe a warning variant if you add one
+            });
+            // No submissionError needed here as it's a successful fallback
        } else if (result.estimatedPrice <= 0) {
-           // Handle cases where AI might return 0 or negative price without explicit error text
+           // Handle cases where price is 0 or negative without explicit error/fallback (should be less common now)
            const unavailableMsg = "Price estimate is currently unavailable for the provided details. Please try modifying the input or try again later.";
            setSubmissionError(unavailableMsg);
            setPriceResult({...result, breakdown: unavailableMsg}); // Update result breakdown too
@@ -169,9 +183,9 @@ export function BookingForm() {
                description: unavailableMsg,
            });
        } else {
-           // Success case
+           // AI Success case
            toast({
-             title: "Price Estimated Successfully",
+             title: "AI Price Estimated Successfully",
              description: `Estimated cost: ₹${result.estimatedPrice.toLocaleString('en-IN')}`,
              variant: "default",
            });
@@ -179,25 +193,18 @@ export function BookingForm() {
 
     } catch (error: any) {
       console.error("[BookingForm] Error during calculatePrice call:", error);
-      let errorMessage = "An unexpected error occurred while estimating the price.";
+      // This catch block now primarily handles unexpected client-side or network errors
+      // since the flow itself tries to handle AI/service errors and fallbacks.
+      let errorMessage = "An unexpected error occurred while connecting to the pricing service.";
 
-      // Check for specific error types or messages
       if (error instanceof Error) {
-        if (error.message.includes('GOOGLE_API_KEY') || error.message.includes('API key') || error.message.includes('FAILED_PRECONDITION')) {
-            errorMessage = "AI service configuration error. Please check the API key setup in the environment variables (.env file).";
-        } else if (error.message.includes('fetch')) {
-            // Could indicate network issues or problems reaching backend/AI services
-            errorMessage = `Network error or service unavailable: ${error.message}. Please check your connection and try again.`;
-        } else {
-            // Generic error message fallback
-            errorMessage = `Failed to estimate price: ${error.message}.`;
-        }
+         errorMessage = `Connection Error: ${error.message}. Please check your network and try again.`;
       }
 
       setSubmissionError(errorMessage);
       toast({
         variant: "destructive",
-        title: "Error Estimating Price",
+        title: "Error Connecting",
         description: errorMessage,
       });
        // Set a generic error state in priceResult for display
@@ -253,7 +260,7 @@ export function BookingForm() {
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center text-primary">Book Your Transport</CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          Enter your shipment details for an AI-powered price estimate (Supports India locations). Use major city names (Delhi, Mumbai, Kolkata, Chennai, Bengaluru) for demo coordinates.
+          Enter your shipment details for an AI-powered price estimate (Supports India locations). Uses fallback if AI is unavailable. Use major city names (Delhi, Mumbai, Kolkata, Chennai, Bengaluru) for demo coordinates.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -387,7 +394,7 @@ export function BookingForm() {
              <FormField control={form.control} name="destinationLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="destinationLongitude" render={({ field }) => <Input type="hidden" {...field} />} />
 
-            {/* Display Submission Error */}
+            {/* Display Submission Error (Only for critical errors, not handled fallbacks) */}
             {submissionError && (
                 <Alert variant="destructive" className="mt-4">
                     <AlertCircle className="h-4 w-4" />
@@ -412,10 +419,14 @@ export function BookingForm() {
         </Form>
       </CardContent>
 
-      {/* Price Result Display */}
-      {priceResult && priceResult.estimatedPrice > 0 && ( // Only show result if price is positive and there wasn't a critical submission error handled earlier
+      {/* Price Result Display (Handles AI success and Fallback success) */}
+      {priceResult && priceResult.estimatedPrice > 0 && (
         <CardFooter className="flex flex-col items-start space-y-4 mt-6 border-t pt-6">
-           <h3 className="text-lg font-semibold text-primary">Price Estimate Result</h3>
+           <h3 className="text-lg font-semibold text-primary">
+               {priceResult.breakdown.toLowerCase().includes('fallback rate')
+                   ? "Price Estimate (Fallback)"
+                   : "AI Price Estimate Result"}
+           </h3>
            <div className="w-full p-4 bg-secondary/10 rounded-lg border border-secondary/20">
               <p className="text-2xl font-bold mb-2 text-accent">
                  ₹{priceResult.estimatedPrice.toLocaleString('en-IN')}
@@ -426,12 +437,15 @@ export function BookingForm() {
               </p>
            </div>
             <p className="text-xs text-muted-foreground italic text-center w-full">
-              Note: This is an estimate for transport within India based on provided details and standard assumptions. Real-world factors may influence the final price.
+              {priceResult.breakdown.toLowerCase().includes('fallback rate')
+                ? "Note: AI estimation was unavailable. This price is based on a standard fallback rate."
+                : "Note: This is an AI-generated estimate for transport within India based on provided details and standard assumptions. Real-world factors may influence the final price."}
             </p>
         </CardFooter>
       )}
-       {/* Show unavailable message if price is 0 or negative, even if not a submission error */}
-      {priceResult && priceResult.estimatedPrice <= 0 && !submissionError && (
+       {/* Show unavailable message ONLY if price is 0 AND there was no fallback success AND no critical submission error */}
+       {/* This condition is less likely now with the fallback, but kept as a safeguard */}
+      {priceResult && priceResult.estimatedPrice <= 0 && !submissionError && !priceResult.breakdown.toLowerCase().includes('fallback rate') && (
          <CardFooter className="flex flex-col items-start space-y-2 mt-6 border-t pt-6">
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
