@@ -1,3 +1,4 @@
+
 /**
  * Represents geographical coordinates with latitude and longitude.
  */
@@ -17,11 +18,11 @@ export interface Coordinates {
  */
 export interface Distance {
   /**
-   * The distance in kilometers.
+   * The straight-line distance in kilometers.
    */
   distanceKm: number;
   /**
-   * The estimated travel time in hours. This is a placeholder and needs a real routing service for accuracy.
+   * A very rough mock travel time in hours based on straight-line distance.
    */
   travelTimeHours: number;
 }
@@ -29,11 +30,12 @@ export interface Distance {
 /**
  * Calculates the great-circle distance between two points
  * on the Earth (specified in decimal degrees) using the Haversine formula.
+ * This calculates the straight-line distance ("as the crow flies").
  * @param lat1 Latitude of the first point.
  * @param lon1 Longitude of the first point.
  * @param lat2 Latitude of the second point.
  * @param lon2 Longitude of the second point.
- * @returns The distance in kilometers.
+ * @returns The straight-line distance in kilometers.
  */
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Radius of the Earth in kilometers
@@ -49,19 +51,40 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 /**
- * Asynchronously calculates the distance between two geographical coordinates using the Haversine formula.
- * Provides a mock travel time.
+ * Asynchronously calculates the straight-line distance between any two geographical coordinates
+ * using the Haversine formula and provides a highly simplified mock travel time.
+ *
+ * This function works for any valid latitude/longitude pairs, including all locations within India.
  *
  * !! IMPORTANT !!
- * This implementation uses the Haversine formula for a straight-line distance.
- * For accurate road distances and travel times, integrate a real mapping/routing API
- * (like Google Maps Distance Matrix API, Mapbox Directions API, etc.).
+ * This implementation provides a **straight-line distance**, not the actual road distance.
+ * For accurate **road distances** and realistic **travel times** within India (or anywhere),
+ * you MUST integrate a real mapping/routing API like:
+ * - Google Maps Distance Matrix API
+ * - MapmyIndia APIs (specific to India)
+ * - Mapbox Directions API
+ * - OpenStreetMap routing engines (e.g., OSRM)
+ *
+ * The mock travel time is based on a simple average speed and does not account for traffic,
+ * road types, or other real-world factors.
  *
  * @param origin The starting coordinates.
  * @param destination The destination coordinates.
- * @returns A promise that resolves to a Distance object containing distance and mock travel time.
+ * @returns A promise that resolves to a Distance object containing the straight-line distance and a mock travel time.
  */
 export async function getDistance(origin: Coordinates, destination: Coordinates): Promise<Distance> {
+  // Input validation (optional but good practice)
+  if (
+      origin.latitude < -90 || origin.latitude > 90 ||
+      origin.longitude < -180 || origin.longitude > 180 ||
+      destination.latitude < -90 || destination.latitude > 90 ||
+      destination.longitude < -180 || destination.longitude > 180
+     ) {
+      console.error("[Distance Service] Invalid coordinates provided:", origin, destination);
+      throw new Error("Invalid geographical coordinates provided.");
+     }
+
+
   const distanceKm = haversineDistance(
     origin.latitude,
     origin.longitude,
@@ -69,27 +92,23 @@ export async function getDistance(origin: Coordinates, destination: Coordinates)
     destination.longitude
   );
 
-  // Mock travel time: Assume an average speed of 50 km/h for simplicity.
-  // Replace this with data from a real routing API.
-  const averageSpeedKmph = 50;
+  // Very basic mock travel time: Assumes an arbitrary average speed.
+  // !! REPLACE this with data from a real routing API for accuracy !!
+  const averageSpeedKmph = 50; // Highly unrealistic constant speed
   const travelTimeHours = distanceKm / averageSpeedKmph;
 
-  // Add a small random factor to simulate variability - REMOVE for production API
-  const randomFactor = 1 + (Math.random() - 0.5) * 0.2; // +/- 10% variation
-  const slightlyRandomDistance = Math.max(10, distanceKm * randomFactor); // Ensure min distance
-  const slightlyRandomTime = Math.max(0.2, travelTimeHours * randomFactor); // Ensure min time
-
-  console.log(`[Mock Distance Service] Origin: ${JSON.stringify(origin)}, Dest: ${JSON.stringify(destination)}, Calculated Distance: ${slightlyRandomDistance.toFixed(2)} km, Mock Time: ${slightlyRandomTime.toFixed(1)} hours`);
+  console.log(`[Mock Distance Service] Origin: ${JSON.stringify(origin)}, Dest: ${JSON.stringify(destination)}`);
+  console.log(`  - Calculated Straight-Line Distance: ${distanceKm.toFixed(2)} km`);
+  console.log(`  - Highly Mock Travel Time (@${averageSpeedKmph}km/h): ${travelTimeHours.toFixed(1)} hours`);
+  console.warn(`  - WARNING: Using straight-line distance and mock time. Integrate a real routing API for accuracy.`);
 
 
   // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 150));
+  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 100)); // Simulate 100-200ms delay
 
 
   return {
-    // Using the slightly randomized value for demonstration. Use `distanceKm` if randomness isn't desired.
-    distanceKm: parseFloat(slightlyRandomDistance.toFixed(2)),
-    // Using the slightly randomized value. Use `travelTimeHours` if randomness isn't desired.
-    travelTimeHours: parseFloat(slightlyRandomTime.toFixed(1)),
+    distanceKm: parseFloat(distanceKm.toFixed(2)),
+    travelTimeHours: parseFloat(travelTimeHours.toFixed(1)),
   };
 }

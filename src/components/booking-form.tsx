@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -39,11 +40,12 @@ import { Calendar as ShadCalendar } from "@/components/ui/calendar"
 const formSchema = z.object({
   pickupAddress: z.string().min(5, { message: "Pickup address must be at least 5 characters." }),
   destinationAddress: z.string().min(5, { message: "Destination address must be at least 5 characters." }),
-  // Mocking lat/lng for India. In a real app, use a geocoding service.
-  pickupLatitude: z.number().min(-90).max(90).default(28.6139), // Example: New Delhi Latitude
-  pickupLongitude: z.number().min(-180).max(180).default(77.2090), // Example: New Delhi Longitude
-  destinationLatitude: z.number().min(-90).max(90).default(19.0760), // Example: Mumbai Latitude
-  destinationLongitude: z.number().min(-180).max(180).default(72.8777), // Example: Mumbai Longitude
+  // Latitude/Longitude will be derived from addresses via geocoding in a real app
+  // For demo purposes, we'll use example coordinates if geocoding isn't implemented.
+  pickupLatitude: z.number().min(-90).max(90).optional(), // Made optional, will be set after geocoding
+  pickupLongitude: z.number().min(-180).max(180).optional(), // Made optional
+  destinationLatitude: z.number().min(-90).max(90).optional(), // Made optional
+  destinationLongitude: z.number().min(-180).max(180).optional(), // Made optional
   goodsDescription: z.string().min(3, { message: "Please describe the goods." }),
   loadWeightKg: z.coerce.number().positive({ message: "Weight must be a positive number." }),
   pickupDate: z.date({ required_error: "Pickup date is required." }),
@@ -51,6 +53,12 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+// Example coordinates (replace with actual geocoding results)
+const EXAMPLE_COORDINATES = {
+    delhi: { lat: 28.6139, lng: 77.2090 },
+    mumbai: { lat: 19.0760, lng: 72.8777 },
+};
 
 export function BookingForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -64,8 +72,9 @@ export function BookingForm() {
       destinationAddress: "",
       goodsDescription: "",
       loadWeightKg: undefined, // Use undefined for number inputs initially
+      pickupDate: undefined,
       pickupTime: "09:00", // Default time
-      // Lat/Lng defaults are set in the schema for India
+      // Lat/Lng are now optional in schema, will be determined before API call
     },
   });
 
@@ -73,17 +82,35 @@ export function BookingForm() {
     setIsLoading(true);
     setPriceResult(null); // Clear previous results
 
-    // In a real app, geocode addresses here to get actual coordinates
-    console.log("Using default coordinates for demo. Pickup:", values.pickupLatitude, values.pickupLongitude, "Dest:", values.destinationLatitude, values.destinationLongitude);
+    // --- Geocoding Step (Placeholder) ---
+    // In a real application, you would use a geocoding service here
+    // to convert `values.pickupAddress` and `values.destinationAddress`
+    // into latitude and longitude coordinates.
+    //
+    // Example using placeholder coordinates for demo:
+    const pickupCoords = {
+        latitude: values.pickupLatitude ?? EXAMPLE_COORDINATES.delhi.lat,
+        longitude: values.pickupLongitude ?? EXAMPLE_COORDINATES.delhi.lng,
+    };
+    const destinationCoords = {
+        latitude: values.destinationLatitude ?? EXAMPLE_COORDINATES.mumbai.lat,
+        longitude: values.destinationLongitude ?? EXAMPLE_COORDINATES.mumbai.lng,
+    };
+    console.log(
+      `[Demo] Using coordinates - Pickup: ${pickupCoords.latitude}, ${pickupCoords.longitude} | Dest: ${destinationCoords.latitude}, ${destinationCoords.longitude}`
+    );
+    console.warn(
+        "NOTE: These coordinates are examples (Delhi/Mumbai). Implement geocoding for real addresses."
+    );
+    // --- End Geocoding Placeholder ---
 
 
-    // Prepare input for the AI function
+    // Prepare input for the AI function using (geocoded or example) coordinates
     const aiInput: CalculatePriceInput = {
-      // Use geocoded coordinates in a real app
-      pickupLatitude: values.pickupLatitude,
-      pickupLongitude: values.pickupLongitude,
-      destinationLatitude: values.destinationLatitude,
-      destinationLongitude: values.destinationLongitude,
+      pickupLatitude: pickupCoords.latitude,
+      pickupLongitude: pickupCoords.longitude,
+      destinationLatitude: destinationCoords.latitude,
+      destinationLongitude: destinationCoords.longitude,
       loadWeightKg: values.loadWeightKg,
     };
 
@@ -92,7 +119,10 @@ export function BookingForm() {
       setPriceResult(result);
       toast({
         title: "Price Estimated Successfully",
-        description: `Estimated cost: ₹${result.estimatedPrice.toLocaleString('en-IN')}`, // Use INR symbol and locale
+        description: result.estimatedPrice > 0
+            ? `Estimated cost: ₹${result.estimatedPrice.toLocaleString('en-IN')}`
+            : "Estimation failed, see details.",
+        variant: result.estimatedPrice === 0 ? "destructive" : "default",
       });
     } catch (error) {
       console.error("Error calculating price:", error);
@@ -122,7 +152,7 @@ export function BookingForm() {
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center text-primary">Book Your Transport</CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          Enter your shipment details for an AI-powered price estimate (India).
+          Enter your shipment details for an AI-powered price estimate (Supports India locations).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -142,7 +172,7 @@ export function BookingForm() {
                     <FormMessage />
                     {/* Add a note about geocoding */}
                      <FormDescription className="text-xs">
-                        (Address will be used to estimate coordinates for demo)
+                        (Address is used to estimate coordinates for demo)
                      </FormDescription>
                   </FormItem>
                 )}
@@ -160,7 +190,7 @@ export function BookingForm() {
                     </FormControl>
                     <FormMessage />
                      <FormDescription className="text-xs">
-                        (Address will be used to estimate coordinates for demo)
+                        (Address is used to estimate coordinates for demo)
                      </FormDescription>
                   </FormItem>
                 )}
@@ -257,8 +287,8 @@ export function BookingForm() {
             </div>
 
 
-            {/* Hidden Lat/Lng Fields (for demo) */}
-            {/* In a real app, you'd use a Geocoding API here */}
+            {/* Hidden Lat/Lng Fields - These are no longer used directly by the form submission */}
+            {/* They are here just to satisfy the schema if needed, but values come from geocoding/defaults */}
              <FormField control={form.control} name="pickupLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="pickupLongitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="destinationLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
@@ -285,21 +315,22 @@ export function BookingForm() {
         <CardFooter className="flex flex-col items-start space-y-4 mt-6 border-t pt-6">
            <h3 className="text-lg font-semibold text-primary">Price Estimate Result</h3>
            <div className="w-full p-4 bg-secondary/10 rounded-lg border border-secondary/20">
-              <p className={`text-2xl font-bold mb-2 ${priceResult.estimatedPrice === 0 ? 'text-destructive' : 'text-accent'}`}>
+              <p className={`text-2xl font-bold mb-2 ${priceResult.estimatedPrice <= 0 ? 'text-destructive' : 'text-accent'}`}> {/* Check for <= 0 */}
                  {priceResult.estimatedPrice > 0
                     ? `₹${priceResult.estimatedPrice.toLocaleString('en-IN')}`
-                    : "Estimate Failed"}
+                    : "Estimate Unavailable"} {/* Adjusted message */}
               </p>
               <Separator className="my-2 bg-secondary/30" />
               <p className="text-sm text-muted-foreground whitespace-pre-wrap"> {/* Allow line breaks in breakdown */}
-                <strong className="text-foreground">Breakdown:</strong> {priceResult.breakdown}
+                <strong className="text-foreground">Details:</strong> {priceResult.breakdown} {/* Changed label to Details */}
               </p>
            </div>
             <p className="text-xs text-muted-foreground italic text-center w-full">
-              Note: This is an estimate for transport within India. Final price may vary based on actual conditions, tolls, and taxes.
+              Note: This is an estimate for transport within India based on provided details and standard assumptions. Real-world factors may influence the final price.
             </p>
         </CardFooter>
       )}
     </Card>
   );
 }
+

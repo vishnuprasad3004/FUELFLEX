@@ -1,3 +1,4 @@
+
 /**
  * Represents the fuel price information.
  */
@@ -13,28 +14,36 @@ export interface FuelPrice {
 }
 
 /**
- * Asynchronously retrieves the current fuel price (mock data for India).
+ * Asynchronously retrieves a *mock* fuel price suitable for demonstrations involving India (INR).
  *
  * !! IMPORTANT !!
- * This implementation returns mock data. For real-time, accurate fuel prices,
- * integrate a reliable external API specific to the target region (India).
+ * This implementation returns **mock data** with a fixed currency (INR) and a randomized price.
+ * It is intended for development and demonstration purposes only.
  *
- * @returns A promise that resolves to a FuelPrice object containing the mock price and currency (INR).
+ * For real-time, accurate fuel prices in India, you **MUST** integrate a reliable external API.
+ * Potential sources include:
+ * - APIs from Indian government oil companies (if available).
+ * - Third-party data providers specializing in fuel prices (e.g., specific financial data services).
+ * - Web scraping (use with caution and respect terms of service).
+ *
+ * @returns A promise that resolves to a FuelPrice object containing a mock price in INR.
  */
 export async function getFuelPrice(): Promise<FuelPrice> {
-  // TODO: Implement this by calling an external API for real-time Indian fuel prices.
-  // Example sources could include government oil company APIs or third-party data providers.
+  // TODO: Replace this mock implementation with a call to a real fuel price API for India.
 
-  // Mock price for demonstration purposes (approximate price per liter in INR)
-  const mockPriceINR = 95.50 + (Math.random() * 5 - 2.5); // Add some slight random variation
+  // Mock price for demonstration (approximate price per liter in INR with variation)
+  const basePriceINR = 95.00; // A plausible base price
+  const variation = (Math.random() - 0.5) * 8; // +/- 4 INR variation
+  const mockPriceINR = basePriceINR + variation;
 
   console.log(`[Mock Fuel Price Service] Returning mock price: ${mockPriceINR.toFixed(2)} INR`);
+  console.warn(`  - WARNING: Using mock fuel price data. Integrate a real API for accuracy.`);
 
   // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 80 + Math.random() * 70)); // Simulate 80-150ms delay
 
   return {
     price: parseFloat(mockPriceINR.toFixed(2)),
-    currency: 'INR', // Indian Rupee
+    currency: 'INR', // Indian Rupee - Set explicitly for the Indian context
   };
 }
