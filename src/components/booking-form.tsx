@@ -148,13 +148,28 @@ export function BookingForm() {
 
       // Check if the AI returned an error state (estimatedPrice 0 and breakdown contains "Error")
        if (result.estimatedPrice === 0 && result.breakdown.toLowerCase().includes('error')) {
-           setSubmissionError(result.breakdown); // Display the error from AI
+           // Provide a more specific message if it seems like an API key issue
+           const detailedError = result.breakdown.includes('GOOGLE_API_KEY') || result.breakdown.includes('API key')
+             ? "AI configuration error. Please ensure the API key is set correctly."
+             : result.breakdown; // Use the error from AI otherwise
+           setSubmissionError(detailedError);
            toast({
                variant: "destructive",
                title: "Price Estimation Failed",
-               description: result.breakdown,
+               description: detailedError,
+           });
+       } else if (result.estimatedPrice <= 0) {
+           // Handle cases where AI might return 0 or negative price without explicit error text
+           const unavailableMsg = "Price estimate is currently unavailable for the provided details. Please try modifying the input or try again later.";
+           setSubmissionError(unavailableMsg);
+           setPriceResult({...result, breakdown: unavailableMsg}); // Update result breakdown too
+           toast({
+               variant: "destructive",
+               title: "Estimate Unavailable",
+               description: unavailableMsg,
            });
        } else {
+           // Success case
            toast({
              title: "Price Estimated Successfully",
              description: `Estimated cost: ₹${result.estimatedPrice.toLocaleString('en-IN')}`,
@@ -164,17 +179,31 @@ export function BookingForm() {
 
     } catch (error: any) {
       console.error("[BookingForm] Error during calculatePrice call:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-      setSubmissionError(`Failed to estimate price: ${errorMessage}`);
+      let errorMessage = "An unexpected error occurred while estimating the price.";
+
+      // Check for specific error types or messages
+      if (error instanceof Error) {
+        if (error.message.includes('GOOGLE_API_KEY') || error.message.includes('API key') || error.message.includes('FAILED_PRECONDITION')) {
+            errorMessage = "AI service configuration error. Please check the API key setup in the environment variables (.env file).";
+        } else if (error.message.includes('fetch')) {
+            // Could indicate network issues or problems reaching backend/AI services
+            errorMessage = `Network error or service unavailable: ${error.message}. Please check your connection and try again.`;
+        } else {
+            // Generic error message fallback
+            errorMessage = `Failed to estimate price: ${error.message}.`;
+        }
+      }
+
+      setSubmissionError(errorMessage);
       toast({
         variant: "destructive",
         title: "Error Estimating Price",
-        description: `An unexpected error occurred. Please try again later. Details: ${errorMessage}`,
+        description: errorMessage,
       });
        // Set a generic error state in priceResult for display
        setPriceResult({
            estimatedPrice: 0,
-           breakdown: `Error: Failed to get estimate. ${errorMessage}`,
+           breakdown: `Error: ${errorMessage}`,
            currency: "INR"
        });
     } finally {
@@ -203,10 +232,18 @@ export function BookingForm() {
     if (pickupCoords) {
         form.setValue('pickupLatitude', pickupCoords.lat, { shouldValidate: false });
         form.setValue('pickupLongitude', pickupCoords.lng, { shouldValidate: false });
+    } else {
+        // Optionally clear or keep previous if address doesn't match known examples
+        // form.setValue('pickupLatitude', undefined, { shouldValidate: false });
+        // form.setValue('pickupLongitude', undefined, { shouldValidate: false });
     }
     if (destCoords) {
         form.setValue('destinationLatitude', destCoords.lat, { shouldValidate: false });
         form.setValue('destinationLongitude', destCoords.lng, { shouldValidate: false });
+    } else {
+        // Optionally clear or keep previous
+        // form.setValue('destinationLatitude', undefined, { shouldValidate: false });
+        // form.setValue('destinationLongitude', undefined, { shouldValidate: false });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch('pickupAddress'), form.watch('destinationAddress')]); // Re-run when addresses change
@@ -376,14 +413,12 @@ export function BookingForm() {
       </CardContent>
 
       {/* Price Result Display */}
-      {priceResult && !submissionError && ( // Only show result if there wasn't a submission error
+      {priceResult && priceResult.estimatedPrice > 0 && ( // Only show result if price is positive and there wasn't a critical submission error handled earlier
         <CardFooter className="flex flex-col items-start space-y-4 mt-6 border-t pt-6">
            <h3 className="text-lg font-semibold text-primary">Price Estimate Result</h3>
            <div className="w-full p-4 bg-secondary/10 rounded-lg border border-secondary/20">
-              <p className={`text-2xl font-bold mb-2 ${priceResult.estimatedPrice <= 0 ? 'text-destructive' : 'text-accent'}`}>
-                 {priceResult.estimatedPrice > 0
-                    ? `₹${priceResult.estimatedPrice.toLocaleString('en-IN')}`
-                    : "Estimate Unavailable"}
+              <p className="text-2xl font-bold mb-2 text-accent">
+                 ₹{priceResult.estimatedPrice.toLocaleString('en-IN')}
               </p>
               <Separator className="my-2 bg-secondary/30" />
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -394,6 +429,18 @@ export function BookingForm() {
               Note: This is an estimate for transport within India based on provided details and standard assumptions. Real-world factors may influence the final price.
             </p>
         </CardFooter>
+      )}
+       {/* Show unavailable message if price is 0 or negative, even if not a submission error */}
+      {priceResult && priceResult.estimatedPrice <= 0 && !submissionError && (
+         <CardFooter className="flex flex-col items-start space-y-2 mt-6 border-t pt-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Estimate Unavailable</AlertTitle>
+              <AlertDescription>
+                {priceResult.breakdown.includes("Error:") ? priceResult.breakdown : "Price estimate is currently unavailable for the provided details. Please try modifying the input or try again later."}
+              </AlertDescription>
+            </Alert>
+         </CardFooter>
       )}
     </Card>
   );
