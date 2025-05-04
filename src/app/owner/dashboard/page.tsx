@@ -51,13 +51,14 @@ const mockVehicles: Vehicle[] = [
 
 export default function OwnerDashboardPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center bg-gradient-to-br from-background to-secondary/10 p-4 md:p-8">
+    // Removed main container styling, rely on root layout and card for centering/padding
+    <div className="container mx-auto py-8 px-4">
       <Card className="w-full max-w-5xl mx-auto shadow-lg border border-border rounded-lg">
         <CardHeader className="text-center">
           <Truck className="mx-auto h-10 w-10 text-primary mb-2" />
           <CardTitle className="text-3xl font-bold text-primary">Owner Dashboard</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Overview of your vehicle fleet status.
+            Overview of your vehicle fleet status. (Note: This page is not currently protected by authentication).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -114,6 +115,6 @@ export default function OwnerDashboardPage() {
           </div>
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }

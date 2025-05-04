@@ -14,7 +14,8 @@ import { UserPlus } from 'lucide-react';
 
 export default function SignupPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-secondary/10 p-4">
+     // Removed main container styling, rely on root layout and card for centering/padding
+     <div className="flex items-center justify-center py-12 px-4">
       <Card className="mx-auto max-w-sm w-full shadow-lg border border-border rounded-lg">
         <CardHeader className="space-y-1 text-center">
           <UserPlus className="mx-auto h-8 w-8 text-primary mb-2" />
@@ -62,6 +63,6 @@ export default function SignupPage() {
           </div>
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }
