@@ -26,12 +26,30 @@ const CalculatePriceOutputSchema = z.object({
   estimatedPrice: z
     .number()
     .describe('The estimated price for the transport, in INR (Indian Rupees).'),
-  breakdown: z.string().describe('A detailed breakdown of the price calculation in INR.'),
+  breakdown: z.string().describe('A detailed breakdown of the price calculation in INR, or an error message if estimation failed.'),
   currency: z.string().describe('The currency code (e.g., INR).').default('INR'),
 });
 export type CalculatePriceOutput = z.infer<typeof CalculatePriceOutputSchema>;
 
 export async function calculatePrice(input: CalculatePriceInput): Promise<CalculatePriceOutput> {
+  // Input validation (basic)
+  if (
+    !input ||
+    typeof input.pickupLatitude !== 'number' ||
+    typeof input.pickupLongitude !== 'number' ||
+    typeof input.destinationLatitude !== 'number' ||
+    typeof input.destinationLongitude !== 'number' ||
+    typeof input.loadWeightKg !== 'number' ||
+    input.loadWeightKg <= 0
+  ) {
+    console.error('[CalculatePriceFlow] Invalid input received:', input);
+    return {
+      estimatedPrice: 0,
+      breakdown: "Error: Invalid input provided. Please check pickup/destination coordinates and load weight.",
+      currency: "INR",
+    };
+  }
+  console.log('[CalculatePriceFlow] Received valid input:', input);
   return calculatePriceFlow(input);
 }
 
@@ -91,11 +109,13 @@ const calculatePriceFlow = ai.defineFlow<
   outputSchema: CalculatePriceOutputSchema,
 }, async (input): Promise<CalculatePriceOutput> => {
   const {pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude, loadWeightKg} = input;
+  console.log('[CalculatePriceFlow] Starting flow execution.');
 
   // Fetch dynamic (but potentially still mock) data from services
   let fuelInfo: FuelPrice;
   let distanceInfo: Distance;
   try {
+     console.log('[CalculatePriceFlow] Fetching fuel price and distance...');
      [fuelInfo, distanceInfo] = await Promise.all([
         getFuelPrice(),
         getDistance(
@@ -103,13 +123,13 @@ const calculatePriceFlow = ai.defineFlow<
             {latitude: destinationLatitude, longitude: destinationLongitude}
         )
      ]);
-  } catch (error) {
-      console.error("Error fetching service data:", error);
-      // Provide a default error response or re-throw
-      // Returning a structured error might be better
-       return {
+     console.log('[CalculatePriceFlow] Fetched data:', { fuelInfo, distanceInfo });
+  } catch (error: any) {
+      console.error("[CalculatePriceFlow] Error fetching service data:", error);
+      const serviceError = error instanceof Error ? error.message : "Unknown service error";
+      return {
          estimatedPrice: 0,
-         breakdown: "Error calculating price: Failed to fetch necessary data (distance or fuel price). Please try again later.",
+         breakdown: `Error calculating price: Failed to fetch necessary data (${serviceError}). Please try again later.`,
          currency: "INR",
        };
   }
@@ -117,39 +137,48 @@ const calculatePriceFlow = ai.defineFlow<
 
    // Ensure currency from fuel service is INR, otherwise, there's a mismatch
    if (fuelInfo.currency !== 'INR') {
-     console.warn(`Fuel price currency mismatch. Expected INR, got ${fuelInfo.currency}. Proceeding, but AI might be confused.`);
-     // Potentially handle currency conversion here if necessary, or return an error
+     console.warn(`[CalculatePriceFlow] Fuel price currency mismatch. Expected INR, got ${fuelInfo.currency}. Proceeding, but AI might be confused.`);
+     // Consider adding currency conversion or returning an error if strict INR is required
    }
 
-  try {
-      const {output} = await pricingPrompt({
-        distanceKm: distanceInfo.distanceKm,
-        travelTimeHours: distanceInfo.travelTimeHours,
-        loadWeightKg: loadWeightKg,
-        fuelInfo: { // Pass the whole fuelInfo object
-          price: fuelInfo.price,
-          currency: fuelInfo.currency,
-        }
-      });
+  // Prepare input for the AI prompt
+  const promptInput = {
+    distanceKm: distanceInfo.distanceKm,
+    travelTimeHours: distanceInfo.travelTimeHours,
+    loadWeightKg: loadWeightKg,
+    fuelInfo: {
+      price: fuelInfo.price,
+      currency: fuelInfo.currency,
+    }
+  };
+  console.log('[CalculatePriceFlow] Prepared input for AI prompt:', promptInput);
 
-      // Ensure the output is not null and has the required fields
-      if (!output || typeof output.estimatedPrice !== 'number' || typeof output.breakdown !== 'string') {
-          throw new Error("AI response format invalid or missing required fields.");
+  try {
+      console.log('[CalculatePriceFlow] Calling AI pricing prompt...');
+      const {output} = await pricingPrompt(promptInput);
+      console.log('[CalculatePriceFlow] Received AI prompt output:', output);
+
+      // More robust check for valid output format
+      if (!output || typeof output.estimatedPrice !== 'number' || output.estimatedPrice < 0 || typeof output.breakdown !== 'string' || !output.breakdown.trim()) {
+          console.error("[CalculatePriceFlow] AI response format invalid or missing required fields:", output);
+          throw new Error("AI model returned an invalid or incomplete response structure.");
       }
 
-       // Round the estimated price
+       // Round the estimated price to the nearest whole number
        const roundedPrice = Math.round(output.estimatedPrice);
+       console.log(`[CalculatePriceFlow] Original price: ${output.estimatedPrice}, Rounded price: ${roundedPrice}`);
 
       return {
-          ...output,
-          estimatedPrice: roundedPrice, // Return the rounded price
-          currency: 'INR', // Explicitly set currency in the final output
+          estimatedPrice: roundedPrice,
+          breakdown: output.breakdown, // Use the breakdown directly from AI
+          currency: 'INR', // Ensure currency is always INR in the final output
       };
-  } catch (aiError) {
-       console.error("Error getting response from AI prompt:", aiError);
+  } catch (aiError: any) {
+       console.error("[CalculatePriceFlow] Error getting response from AI prompt:", aiError);
+       const aiErrorMessage = aiError instanceof Error ? aiError.message : "Unknown AI error";
        return {
          estimatedPrice: 0,
-         breakdown: "Error calculating price: AI model failed to generate a valid estimate. Please try again later.",
+         breakdown: `Error calculating price: AI model failed to generate a valid estimate (${aiErrorMessage}). Please try again later.`,
          currency: "INR",
        };
   }
