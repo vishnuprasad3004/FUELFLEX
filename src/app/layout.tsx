@@ -1,10 +1,11 @@
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { Button } from '@/components/ui/button'; // Import Button
-import { Home, LogIn, UserPlus, LayoutDashboard, ShieldCheck } from 'lucide-react'; // Import icons
+import { Button } from '@/components/ui/button';
+import { Home, LogIn, UserPlus, LayoutDashboard, ShieldCheck, PackagePlus } from 'lucide-react'; // Added PackagePlus for Book Transport
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -30,10 +31,15 @@ export default function RootLayout({
               </svg>
               <span className="font-bold text-primary hidden sm:inline-block">FuelFlex</span>
             </Link>
-            <nav className="flex items-center space-x-2 lg:space-x-4 ml-auto">
+            <nav className="flex items-center space-x-1 lg:space-x-2 ml-auto">
               <Link href="/" passHref>
                 <Button variant="ghost" className="text-sm font-medium">
                   <Home className="mr-1 h-4 w-4" /> Home
+                </Button>
+              </Link>
+              <Link href="/book-transport" passHref>
+                <Button variant="ghost" className="text-sm font-medium">
+                  <PackagePlus className="mr-1 h-4 w-4" /> Book Transport
                 </Button>
               </Link>
               <Link href="/login" passHref>
