@@ -43,11 +43,34 @@ To get started, take a look at `src/app/page.tsx`.
 
 Create a `.env` file in the project root and add the following variables. **Replace `YOUR_..._HERE` with your actual keys and project details.**
 
-**IMPORTANT: Incorrect or missing API keys will lead to errors like `auth/api-key-not-valid` for Firebase or similar errors for Google AI/Maps services. Double-check these values.**
+**VERY IMPORTANT: API Key Errors (e.g., `auth/api-key-not-valid`)**
+
+If you encounter errors like `auth/api-key-not-valid`, `GOOGLE_GENAI_API_KEY` issues, or `Google Maps API key` problems, it's almost certainly an issue with your `.env` file or the API key configuration in your Google/Firebase project.
+
+**Troubleshooting Steps for API Key Errors:**
+
+1.  **`.env` File Location:** Ensure the file is named exactly `.env` (not `.env.local` for these specific keys unless you intend for that behavior) and is located in the **root directory** of your project (the same level as `package.json`).
+2.  **Variable Names:** Double-check that the variable names in your `.env` file exactly match the ones listed below (e.g., `NEXT_PUBLIC_FIREBASE_API_KEY`, `GOOGLE_GENAI_API_KEY`, `GOOGLE_MAPS_API_KEY`). Typos are common.
+3.  **API Key Values:**
+    *   **Copy-Paste Carefully:** Ensure you have copied the entire API key correctly from your Firebase project settings or Google Cloud Console.
+    *   **No Extra Characters:** There should be no extra spaces, quotes (unless the key itself contains them, which is rare), or other characters around the key. For example:
+        *   Correct: `NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyC...`
+        *   Incorrect: `NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSyC..."` (unless the key itself has quotes)
+        *   Incorrect: `NEXT_PUBLIC_FIREBASE_API_KEY= AIzaSyC...` (extra space)
+4.  **Correct Firebase Project:**
+    *   Verify that the Firebase project details (API Key, Auth Domain, Project ID, etc.) are from the **correct Firebase project** you intend to use.
+    *   In your Firebase project settings (Project settings > General > Your apps > Web app > SDK setup and configuration), ensure your web app is registered and the configuration details match what you have in `.env`.
+5.  **Enabled APIs/Services:**
+    *   **Firebase:** Ensure Firebase Authentication, Firestore (in Native mode or Datastore mode as per your setup), and Cloud Storage are enabled in your Firebase project.
+    *   **Google AI (Genkit):** Make sure the Generative Language API (or Vertex AI API if using that backend) is enabled in your Google Cloud project associated with the `GOOGLE_GENAI_API_KEY`.
+    *   **Google Maps:** Ensure "Distance Matrix API" and "Maps JavaScript API" (if you plan to use map displays) are enabled for the `GOOGLE_MAPS_API_KEY` in the Google Cloud Console.
+6.  **API Key Restrictions (Google Cloud):** If you've set up API key restrictions in Google Cloud Console, ensure they allow your development environment (e.g., `http://localhost:*` for HTTP referrers if testing locally) and the necessary APIs (Distance Matrix, Generative Language, etc.). For development, you might temporarily remove restrictions to isolate the problem.
+7.  **Restart Your Development Server:** After creating or making any changes to your `.env` file, you **MUST** restart your Next.js development server (`npm run dev` or `yarn dev`) and your Genkit server (`npm run genkit:watch`) for the changes to take effect.
 
 ```env
 # Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
 # Or from Google Cloud: https://console.cloud.google.com/apis/credentials
+# Ensure the Generative Language API (or Vertex AI, depending on model) is enabled.
 GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_GENAI_API_KEY_HERE
 
 # Get your Google Maps API Key from Google Cloud Console: https://console.cloud.google.com/google/maps-apis/credentials
@@ -57,7 +80,8 @@ GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 # Firebase configuration
 # Get these from your Firebase project settings:
 # Project settings > General > Your apps > Web app > SDK setup and configuration
-# Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct to avoid 'auth/api-key-not-valid' errors.
+# CRITICAL: Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your project.
+# This is the most common cause of 'auth/api-key-not-valid' errors.
 NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
@@ -67,7 +91,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
 # NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID # Optional, for Analytics
 ```
 
-**Replace `YOUR_..._HERE` with your actual API keys and Firebase project details.**
+**Replace `YOUR_..._HERE` with your actual API keys and Firebase project details.** If you're still facing issues after checking all the above, double-check the Firebase console for any project-level alerts or misconfigurations.
 
 ### Installation
 
@@ -85,23 +109,24 @@ NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
 
 ### Running the Development Server
 
-1.  **Start the Genkit development server (for AI flows):**
+1.  **Ensure your `.env` file is correctly set up with valid API keys.**
+2.  **Start the Genkit development server (for AI flows):**
     Open a terminal and run:
     ```bash
     npm run genkit:watch
     # or
     yarn genkit:watch
     ```
-    This will typically start on `http://localhost:3400`.
+    This will typically start on `http://localhost:3400`. Check its console output for any Genkit-specific API key errors.
 
-2.  **Start the Next.js development server:**
+3.  **Start the Next.js development server:**
     Open another terminal and run:
     ```bash
     npm run dev
     # or
     yarn dev
     ```
-    This will typically start the Next.js app on `http://localhost:9002` (as per `package.json`).
+    This will typically start the Next.js app on `http://localhost:9002` (as per `package.json`). Check its console output for Firebase or other API key errors.
 
 Navigate to `http://localhost:9002` in your browser.
 
@@ -123,7 +148,8 @@ The request body must be a JSON object matching the following structure:
   "pickupLongitude": number,    // e.g., 77.2090 (Delhi)
   "destinationLatitude": number, // e.g., 19.0760 (Mumbai)
   "destinationLongitude": number,// e.g., 72.8777 (Mumbai)
-  "loadWeightKg": number        // e.g., 1500
+  "loadWeightKg": number,       // e.g., 1500
+  "vehicleType": string         // e.g., "Mini Truck (Tata Ace, Mahindra Jeeto, etc.)"
 }
 ```
 
@@ -140,7 +166,7 @@ Returns a JSON object with the estimated price and breakdown:
   "travelTimeHours": number // Calculated travel time in hours
 }
 ```
-*Note: If the AI or Distance Matrix API fails, the endpoint may return a price calculated using a fallback rate (`150 INR/km`) and the `breakdown` will indicate this.*
+*Note: If the AI or Distance Matrix API fails, the endpoint may return a price calculated using a fallback rate (e.g., `150 INR/km` adjusted for vehicle type) and the `breakdown` will indicate this.*
 
 **Error Responses:**
 
@@ -173,8 +199,9 @@ Future<Map<String, dynamic>?> getPriceEstimate({
   required double destLat,
   required double destLng,
   required double weightKg,
+  required String vehicleType, // Add vehicleType
 }) async {
-  // Replace with your actual deployed Next.js app URL
+  // Replace with your actual deployed Next.js app URL or http://localhost:9002 for local dev
   final url = Uri.parse('YOUR_NEXTJS_APP_URL/api/calculate-price');
 
   try {
@@ -187,6 +214,7 @@ Future<Map<String, dynamic>?> getPriceEstimate({
         'destinationLatitude': destLat,
         'destinationLongitude': destLng,
         'loadWeightKg': weightKg,
+        'vehicleType': vehicleType, // Include vehicleType
       }),
     );
 
@@ -220,6 +248,7 @@ Future<Map<String, dynamic>?> getPriceEstimate({
 //   destLat: 19.0760,
 //   destLng: 72.8777,
 //   weightKg: 1500,
+//   vehicleType: "Mini Truck (Tata Ace, Mahindra Jeeto, etc.)", // Provide a valid vehicle type
 // );
 //
 // if (result != null) {
@@ -233,4 +262,5 @@ Future<Map<String, dynamic>?> getPriceEstimate({
 
 ```
 
-**Remember to replace `YOUR_NEXTJS_APP_URL` with the actual URL where your Next.js application is deployed.**
+**Remember to replace `YOUR_NEXTJS_APP_URL` with the actual URL where your Next.js application is deployed (or `http://localhost:9002` if testing locally against your dev server).**
+Also, ensure the `vehicleType` string passed matches one of the expected types defined in `src/models/booking.ts`.
