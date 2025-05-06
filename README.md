@@ -43,6 +43,8 @@ To get started, take a look at `src/app/page.tsx`.
 
 Create a `.env` file in the project root and add the following variables. **Replace `YOUR_..._HERE` with your actual keys and project details.**
 
+**IMPORTANT: Incorrect or missing API keys will lead to errors like `auth/api-key-not-valid` for Firebase or similar errors for Google AI/Maps services. Double-check these values.**
+
 ```env
 # Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
 # Or from Google Cloud: https://console.cloud.google.com/apis/credentials
@@ -55,6 +57,7 @@ GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 # Firebase configuration
 # Get these from your Firebase project settings:
 # Project settings > General > Your apps > Web app > SDK setup and configuration
+# Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct to avoid 'auth/api-key-not-valid' errors.
 NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
