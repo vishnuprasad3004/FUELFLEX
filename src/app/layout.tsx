@@ -4,7 +4,7 @@ import Link from 'next/link';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button'; // Import Button
-import { Home, LogIn, UserPlus, LayoutDashboard } from 'lucide-react'; // Import icons
+import { Home, LogIn, UserPlus, LayoutDashboard, ShieldCheck } from 'lucide-react'; // Import icons
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -30,7 +30,7 @@ export default function RootLayout({
               </svg>
               <span className="font-bold text-primary hidden sm:inline-block">FuelFlex</span>
             </Link>
-            <nav className="flex items-center space-x-4 lg:space-x-6 ml-auto">
+            <nav className="flex items-center space-x-2 lg:space-x-4 ml-auto">
               <Link href="/" passHref>
                 <Button variant="ghost" className="text-sm font-medium">
                   <Home className="mr-1 h-4 w-4" /> Home
@@ -49,7 +49,13 @@ export default function RootLayout({
               {/* TODO: Protect this route with authentication */}
               <Link href="/owner/dashboard" passHref>
                 <Button variant="ghost" className="text-sm font-medium">
-                  <LayoutDashboard className="mr-1 h-4 w-4" /> Dashboard
+                  <LayoutDashboard className="mr-1 h-4 w-4" /> Owner
+                </Button>
+              </Link>
+              {/* TODO: Protect this route with authentication (Admin) */}
+              <Link href="/admin/dashboard" passHref>
+                <Button variant="ghost" className="text-sm font-medium">
+                  <ShieldCheck className="mr-1 h-4 w-4" /> Admin
                 </Button>
               </Link>
             </nav>

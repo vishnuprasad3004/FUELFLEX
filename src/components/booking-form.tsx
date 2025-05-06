@@ -5,7 +5,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { MapPin, Package, Calendar, Clock, Truck, Building, Home, CircleDollarSign, Loader2, IndianRupee, AlertCircle } from "lucide-react";
+import { MapPin, Package, Calendar, Clock, Truck, Building, Home, CircleDollarSign, Loader2, IndianRupee, AlertCircle, CreditCard, FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,9 +41,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const formSchema = z.object({
   pickupAddress: z.string().min(5, { message: "Pickup address must be at least 5 characters." }),
   destinationAddress: z.string().min(5, { message: "Destination address must be at least 5 characters." }),
-  // Latitude/Longitude will be derived from addresses via geocoding in a real app
-  // For demo purposes, we'll use example coordinates if geocoding isn't implemented.
-  // These are kept in the schema but populated *before* calling the AI flow.
   pickupLatitude: z.number().min(-90).max(90).optional(),
   pickupLongitude: z.number().min(-180).max(180).optional(),
   destinationLatitude: z.number().min(-90).max(90).optional(),
@@ -56,7 +53,6 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-// Example coordinates (replace with actual geocoding results)
 const EXAMPLE_COORDINATES = {
     delhi: { lat: 28.6139, lng: 77.2090 },
     mumbai: { lat: 19.0760, lng: 72.8777 },
@@ -65,7 +61,6 @@ const EXAMPLE_COORDINATES = {
     bengaluru: { lat: 12.9716, lng: 77.5946 },
 };
 
-// Helper function to validate coordinates
 const isValidCoordinate = (coord: number | undefined | null): coord is number => {
     return typeof coord === 'number' && !isNaN(coord);
 }
@@ -79,13 +74,12 @@ export function BookingForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      pickupAddress: "Delhi", // Example default
-      destinationAddress: "Mumbai", // Example default
+      pickupAddress: "Delhi", 
+      destinationAddress: "Mumbai", 
       goodsDescription: "",
       loadWeightKg: undefined,
-      pickupDate: new Date(), // Default to today
+      pickupDate: new Date(), 
       pickupTime: "09:00",
-      // Example coordinates pre-filled for demo - USER CAN OVERRIDE BY TYPING ADDRESS
       pickupLatitude: EXAMPLE_COORDINATES.delhi.lat,
       pickupLongitude: EXAMPLE_COORDINATES.delhi.lng,
       destinationLatitude: EXAMPLE_COORDINATES.mumbai.lat,
@@ -95,15 +89,11 @@ export function BookingForm() {
 
   async function onSubmit(values: FormData) {
     setIsLoading(true);
-    setPriceResult(null); // Clear previous results
-    setSubmissionError(null); // Clear previous errors
+    setPriceResult(null); 
+    setSubmissionError(null);
 
-    // --- Geocoding Step (Placeholder) ---
-    // In a real application, use a geocoding service here based on addresses.
-    // For demo, we use the (potentially pre-filled or default) lat/lng values.
-    // If implementing geocoding, update these values *here* based on the service response.
     const pickupCoords = {
-        latitude: values.pickupLatitude, // Use values from form (potentially defaults)
+        latitude: values.pickupLatitude, 
         longitude: values.pickupLongitude,
     };
     const destinationCoords = {
@@ -113,7 +103,6 @@ export function BookingForm() {
     console.log(
       `[Demo] Using coordinates for calculation - Pickup: ${pickupCoords.latitude}, ${pickupCoords.longitude} | Dest: ${destinationCoords.latitude}, ${destinationCoords.longitude}`
     );
-     // Basic validation *before* calling the AI flow
      if (!isValidCoordinate(pickupCoords.latitude) || !isValidCoordinate(pickupCoords.longitude) ||
          !isValidCoordinate(destinationCoords.latitude) || !isValidCoordinate(destinationCoords.longitude)) {
         const errorMsg = "Invalid or missing coordinates. Please ensure addresses resolve correctly or manually input coordinates if needed.";
@@ -125,18 +114,15 @@ export function BookingForm() {
           description: errorMsg,
         });
         setIsLoading(false);
-        return; // Stop submission
+        return; 
      }
-    // --- End Geocoding Placeholder ---
 
-
-    // Prepare input for the AI function
     const aiInput: CalculatePriceInput = {
-      pickupLatitude: pickupCoords.latitude, // Already validated above
+      pickupLatitude: pickupCoords.latitude, 
       pickupLongitude: pickupCoords.longitude,
       destinationLatitude: destinationCoords.latitude,
       destinationLongitude: destinationCoords.longitude,
-      loadWeightKg: values.loadWeightKg, // Schema ensures this is positive number
+      loadWeightKg: values.loadWeightKg, 
     };
 
     try {
@@ -146,17 +132,17 @@ export function BookingForm() {
 
       setPriceResult(result);
 
-      // Check if the AI/Fallback returned an error or a fallback message
        if (result.estimatedPrice <= 0 && result.breakdown.toLowerCase().includes('error')) {
-           // Specific handling for API key errors visible in breakdown
-           const isApiKeyError = result.breakdown.includes('API_KEY_INVALID') ||
-                                 result.breakdown.includes('API key not valid') ||
-                                 result.breakdown.includes('Please pass in the API key') ||
-                                 result.breakdown.includes('FAILED_PRECONDITION');
+           const isGenkitApiKeyError = result.breakdown.includes('Genkit API Key') || result.breakdown.toLowerCase().includes('google_genai_api_key');
+           const isMapsApiKeyError = result.breakdown.includes('Google Maps API key') || result.breakdown.toLowerCase().includes('google_maps_api_key');
+            
+           let detailedError = result.breakdown;
+           if (isGenkitApiKeyError) {
+             detailedError = "AI configuration error: Invalid or missing GOOGLE_GENAI_API_KEY. Please contact support or check environment variables.";
+           } else if (isMapsApiKeyError) {
+             detailedError = "Map service error: Invalid or missing GOOGLE_MAPS_API_KEY, or Distance Matrix API not enabled. Please contact support or check environment variables.";
+           }
 
-           const detailedError = isApiKeyError
-             ? "AI configuration error: Invalid or missing API key. Please ensure GOOGLE_GENAI_API_KEY is set correctly in your environment."
-             : result.breakdown; // Use the error from AI/flow otherwise
 
            setSubmissionError(detailedError);
            toast({
@@ -165,25 +151,21 @@ export function BookingForm() {
                description: detailedError,
            });
        } else if (result.breakdown.toLowerCase().includes('fallback rate')) {
-            // Handle successful fallback case - show the result, maybe with a specific toast
             toast({
               title: "Price Estimated (Fallback Rate)",
               description: `AI unavailable, used fallback rate. Est: ₹${result.estimatedPrice.toLocaleString('en-IN')}`,
-              variant: "default", // Or maybe a warning variant if you add one
+              variant: "default", 
             });
-            // No submissionError needed here as it's a successful fallback
        } else if (result.estimatedPrice <= 0) {
-           // Handle cases where price is 0 or negative without explicit error/fallback (should be less common now)
            const unavailableMsg = "Price estimate is currently unavailable for the provided details. Please try modifying the input or try again later.";
            setSubmissionError(unavailableMsg);
-           setPriceResult({...result, breakdown: unavailableMsg}); // Update result breakdown too
+           setPriceResult({...result, breakdown: unavailableMsg}); 
            toast({
                variant: "destructive",
                title: "Estimate Unavailable",
                description: unavailableMsg,
            });
        } else {
-           // AI Success case
            toast({
              title: "AI Price Estimated Successfully",
              description: `Estimated cost: ₹${result.estimatedPrice.toLocaleString('en-IN')}`,
@@ -193,8 +175,6 @@ export function BookingForm() {
 
     } catch (error: any) {
       console.error("[BookingForm] Error during calculatePrice call:", error);
-      // This catch block now primarily handles unexpected client-side or network errors
-      // since the flow itself tries to handle AI/service errors and fallbacks.
       let errorMessage = "An unexpected error occurred while connecting to the pricing service.";
 
       if (error instanceof Error) {
@@ -207,7 +187,6 @@ export function BookingForm() {
         title: "Error Connecting",
         description: errorMessage,
       });
-       // Set a generic error state in priceResult for display
        setPriceResult({
            estimatedPrice: 0,
            breakdown: `Error: ${errorMessage}`,
@@ -218,19 +197,17 @@ export function BookingForm() {
     }
   }
 
-  // Update Lat/Lng when address changes (simple example, replace with actual geocoding)
   React.useEffect(() => {
     const pickupAddr = form.watch('pickupAddress').toLowerCase();
     const destAddr = form.watch('destinationAddress').toLowerCase();
 
-    // Very basic string matching for demo - REPLACE WITH GEOCODING API
     const getCoords = (addr: string) => {
         if (addr.includes('delhi')) return EXAMPLE_COORDINATES.delhi;
         if (addr.includes('mumbai')) return EXAMPLE_COORDINATES.mumbai;
         if (addr.includes('kolkata')) return EXAMPLE_COORDINATES.kolkata;
         if (addr.includes('chennai')) return EXAMPLE_COORDINATES.chennai;
         if (addr.includes('bengaluru') || addr.includes('bangalore')) return EXAMPLE_COORDINATES.bengaluru;
-        return null; // Or keep previous/default if no match
+        return null; 
     }
 
     const pickupCoords = getCoords(pickupAddr);
@@ -239,34 +216,26 @@ export function BookingForm() {
     if (pickupCoords) {
         form.setValue('pickupLatitude', pickupCoords.lat, { shouldValidate: false });
         form.setValue('pickupLongitude', pickupCoords.lng, { shouldValidate: false });
-    } else {
-        // Optionally clear or keep previous if address doesn't match known examples
-        // form.setValue('pickupLatitude', undefined, { shouldValidate: false });
-        // form.setValue('pickupLongitude', undefined, { shouldValidate: false });
     }
     if (destCoords) {
         form.setValue('destinationLatitude', destCoords.lat, { shouldValidate: false });
         form.setValue('destinationLongitude', destCoords.lng, { shouldValidate: false });
-    } else {
-        // Optionally clear or keep previous
-        // form.setValue('destinationLatitude', undefined, { shouldValidate: false });
-        // form.setValue('destinationLongitude', undefined, { shouldValidate: false });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.watch('pickupAddress'), form.watch('destinationAddress')]); // Re-run when addresses change
+  }, [form.watch('pickupAddress'), form.watch('destinationAddress')]); 
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center text-primary">Book Your Transport</CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          Enter your shipment details for an AI-powered price estimate (Supports India locations). Uses fallback if AI is unavailable. Use major city names (Delhi, Mumbai, Kolkata, Chennai, Bengaluru) for demo coordinates.
+          Enter shipment details for an AI-powered price estimate. Uses Google Distance Matrix API.
+          Supports India locations. (Demo uses example coordinates for major cities).
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Address Inputs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -302,7 +271,6 @@ export function BookingForm() {
               />
             </div>
 
-             {/* Goods Description */}
              <FormField
               control={form.control}
               name="goodsDescription"
@@ -317,7 +285,6 @@ export function BookingForm() {
               )}
             />
 
-            {/* Weight, Date, Time */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
@@ -363,7 +330,7 @@ export function BookingForm() {
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date < new Date(new Date().setHours(0, 0, 0, 0)) // Disable past dates
+                              date < new Date(new Date().setHours(0, 0, 0, 0)) 
                             }
                             initialFocus
                           />
@@ -388,13 +355,11 @@ export function BookingForm() {
                 />
             </div>
 
-            {/* Hidden Lat/Lng Fields - Populated by useEffect or defaults */}
              <FormField control={form.control} name="pickupLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="pickupLongitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="destinationLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="destinationLongitude" render={({ field }) => <Input type="hidden" {...field} />} />
 
-            {/* Display Submission Error (Only for critical errors, not handled fallbacks) */}
             {submissionError && (
                 <Alert variant="destructive" className="mt-4">
                     <AlertCircle className="h-4 w-4" />
@@ -419,7 +384,6 @@ export function BookingForm() {
         </Form>
       </CardContent>
 
-      {/* Price Result Display (Handles AI success and Fallback success) */}
       {priceResult && priceResult.estimatedPrice > 0 && (
         <CardFooter className="flex flex-col items-start space-y-4 mt-6 border-t pt-6">
            <h3 className="text-lg font-semibold text-primary">
@@ -427,24 +391,38 @@ export function BookingForm() {
                    ? "Price Estimate (Fallback)"
                    : "AI Price Estimate Result"}
            </h3>
-           <div className="w-full p-4 bg-secondary/10 rounded-lg border border-secondary/20">
-              <p className="text-2xl font-bold mb-2 text-accent">
+           <div className="w-full p-4 bg-secondary/10 rounded-lg border border-secondary/20 space-y-2">
+              <p className="text-2xl font-bold text-accent">
                  ₹{priceResult.estimatedPrice.toLocaleString('en-IN')}
               </p>
+              {(priceResult.distanceText || priceResult.durationText) && (
+                 <div className="text-sm text-muted-foreground">
+                    {priceResult.distanceText && <span>Distance: {priceResult.distanceText}</span>}
+                    {priceResult.distanceText && priceResult.durationText && <span className="mx-2">|</span>}
+                    {priceResult.durationText && <span>Est. Time: {priceResult.durationText}</span>}
+                 </div>
+              )}
               <Separator className="my-2 bg-secondary/30" />
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 <strong className="text-foreground">Details:</strong> {priceResult.breakdown}
               </p>
            </div>
-            <p className="text-xs text-muted-foreground italic text-center w-full">
+           {/* Placeholder for Payment and Invoice actions */}
+            <div className="w-full flex flex-col sm:flex-row gap-2 mt-4">
+                <Button variant="default" className="flex-1" disabled> {/* TODO: Enable when payment integrated */}
+                    <CreditCard className="mr-2 h-4 w-4" /> Proceed to Payment (Coming Soon)
+                </Button>
+                <Button variant="outline" className="flex-1" disabled> {/* TODO: Enable when invoice integrated */}
+                    <FileText className="mr-2 h-4 w-4" /> Download Invoice (Coming Soon)
+                </Button>
+            </div>
+            <p className="text-xs text-muted-foreground italic text-center w-full pt-2">
               {priceResult.breakdown.toLowerCase().includes('fallback rate')
                 ? "Note: AI estimation was unavailable. This price is based on a standard fallback rate."
                 : "Note: This is an AI-generated estimate for transport within India based on provided details and standard assumptions. Real-world factors may influence the final price."}
             </p>
         </CardFooter>
       )}
-       {/* Show unavailable message ONLY if price is 0 AND there was no fallback success AND no critical submission error */}
-       {/* This condition is less likely now with the fallback, but kept as a safeguard */}
       {priceResult && priceResult.estimatedPrice <= 0 && !submissionError && !priceResult.breakdown.toLowerCase().includes('fallback rate') && (
          <CardFooter className="flex flex-col items-start space-y-2 mt-6 border-t pt-6">
             <Alert variant="destructive">

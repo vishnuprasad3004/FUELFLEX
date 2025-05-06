@@ -1,8 +1,103 @@
-# Firebase Studio
+# FuelFlex Transport Platform
 
-This is a NextJS starter in Firebase Studio.
+This is a Next.js application for a smart goods transport and fuel credit platform, built with Firebase and Genkit.
 
-To get started, take a look at src/app/page.tsx.
+To get started, take a look at `src/app/page.tsx`.
+
+## Core Features
+
+*   **AI-Powered Pricing:** Dynamically estimates transport costs using Genkit and Google's Generative AI models, considering factors like distance, load weight, and real-time fuel prices.
+*   **Booking System:** Allows clients to book transport services by providing pickup/destination details, goods description, and preferred pickup time.
+*   **Owner Dashboard:** Enables transport owners to view a summary of their vehicle fleet, including mock location, fuel levels, and FASTag balances.
+*   **User Authentication Pages:** Basic login and sign-up page structures.
+
+## Advanced Features (In Development / Planned)
+
+*   **Smart Route & Distance Calculation:** Utilizes the **Google Distance Matrix API** for accurate road distances and estimated travel times, improving the reliability of price estimations. (Requires `GOOGLE_MAPS_API_KEY`)
+*   **Live Vehicle Tracking (Placeholder):** The Owner Dashboard includes a placeholder for future integration of live vehicle tracking using Google Maps and real-time driver location updates.
+*   **Admin Dashboard (Placeholder):** A dedicated dashboard for administrators (`/admin/dashboard`) to monitor trips, repayments, and overall platform activity (currently a placeholder).
+*   **Payment Gateway Integration (Placeholder):** The booking form includes a placeholder to proceed to payment, with future plans to integrate UPI and/or Stripe for booking fees and fuel credit repayments.
+*   **Automated Reminders (Planned):** Future integration of Firebase Cloud Functions for automated due-date reminders for fuel credit.
+*   **PDF Invoices (Planned):** Future capability to generate and download PDF invoices, potentially stored in Firebase Storage.
+*   **Push Notifications (Planned):** Firebase Cloud Messaging (FCM) will be used to send real-time updates to users about bookings, repayments, and trip status.
+*   **Role-Based Access Control (Planned):** Implementation of RBAC to ensure clients, drivers, and admins can only access features relevant to their roles. This will involve enhancing Firestore security rules.
+*   **Multilingual Support (Planned):** The platform aims to support multiple languages using Next.js internationalization libraries (e.g., `next-intl`) or similar solutions.
+
+## Technology Stack
+
+*   **Frontend:** Next.js (React Framework), TypeScript, Tailwind CSS, ShadCN UI Components
+*   **Backend/AI:** Genkit, Google Generative AI (Gemini models)
+*   **Services:** Google Distance Matrix API
+*   **Database/Auth (Planned):** Firebase (Firestore, Authentication, Cloud Functions, Storage, FCM)
+*   **Deployment (Typical):** Vercel, Firebase Hosting
+
+## Getting Started
+
+### Prerequisites
+
+*   Node.js (v18 or later recommended)
+*   npm or yarn
+*   A Firebase project (for future database, auth, and other Firebase service integrations)
+
+### Environment Variables
+
+Create a `.env` file in the project root and add the following variables:
+
+```env
+# Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
+# Or from Google Cloud: https://console.cloud.google.com/apis/credentials
+GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_GENAI_API_KEY_HERE
+
+# Get your Google Maps API Key from Google Cloud Console: https://console.cloud.google.com/google/maps-apis/credentials
+# Ensure "Distance Matrix API" and "Maps JavaScript API" (for live tracking) are enabled for this key.
+GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
+
+# Firebase configuration (Add these when integrating Firebase)
+# NEXT_PUBLIC_FIREBASE_API_KEY=
+# NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+# NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+# NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+# NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+# NEXT_PUBLIC_FIREBASE_APP_ID=
+```
+
+**Replace `YOUR_..._KEY_HERE` with your actual API keys.**
+
+### Installation
+
+1.  Clone the repository:
+    ```bash
+    git clone <repository-url>
+    cd <repository-name>
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    # or
+    yarn install
+    ```
+
+### Running the Development Server
+
+1.  **Start the Genkit development server (for AI flows):**
+    Open a terminal and run:
+    ```bash
+    npm run genkit:watch
+    # or
+    yarn genkit:watch
+    ```
+    This will typically start on `http://localhost:3400`.
+
+2.  **Start the Next.js development server:**
+    Open another terminal and run:
+    ```bash
+    npm run dev
+    # or
+    yarn dev
+    ```
+    This will typically start the Next.js app on `http://localhost:9002` (as per `package.json`).
+
+Navigate to `http://localhost:9002` in your browser.
 
 ## AI-Powered Pricing API
 
@@ -34,21 +129,23 @@ Returns a JSON object with the estimated price and breakdown:
 {
   "estimatedPrice": number, // The calculated price (e.g., 11250) or fallback price
   "breakdown": string,    // Explanation from the AI or fallback message
-  "currency": "INR"
+  "currency": "INR",
+  "distanceKm": number,   // Calculated distance in kilometers
+  "travelTimeHours": number // Calculated travel time in hours
 }
 ```
-*Note: If the AI fails, the endpoint will return a price calculated using a fallback rate (`150 INR/km`) and the `breakdown` will indicate this.*
+*Note: If the AI or Distance Matrix API fails, the endpoint may return a price calculated using a fallback rate (`150 INR/km`) and the `breakdown` will indicate this.*
 
 **Error Responses:**
 
-*   **Status 400 Bad Request:** If the request body is missing required fields or has invalid data types. The response body will contain details about the validation errors.
+*   **Status 400 Bad Request:** If the request body is missing required fields or has invalid data types.
     ```json
     {
       "error": "Invalid request body",
       "details": [ ... validation errors ... ]
     }
     ```
-*   **Status 500 Internal Server Error:** If there's an issue on the server side (e.g., AI model error, failure to fetch necessary data, invalid API key). The response body might contain more details.
+*   **Status 500 Internal Server Error:** If there's an issue on the server side (e.g., AI model error, failure to fetch necessary data, invalid API key).
     ```json
     {
       "error": "Price estimation failed", // Or "Internal Server Error"
@@ -122,6 +219,8 @@ Future<Map<String, dynamic>?> getPriceEstimate({
 // if (result != null) {
 //   print('Estimated Price: ${result['estimatedPrice']} ${result['currency']}');
 //   print('Breakdown: ${result['breakdown']}');
+//   print('Distance: ${result['distanceKm']} km');
+//   print('Travel Time: ${result['travelTimeHours']} hours');
 // } else {
 //   print('Failed to get price estimate.');
 // }

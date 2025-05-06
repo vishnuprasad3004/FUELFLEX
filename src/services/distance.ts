@@ -14,66 +14,50 @@ export interface Coordinates {
 }
 
 /**
- * Represents the distance between two points.
+ * Represents the distance and travel time between two points.
  */
 export interface Distance {
   /**
-   * The straight-line distance in kilometers.
+   * The road distance in kilometers.
    */
   distanceKm: number;
   /**
-   * A very rough mock travel time in hours based on straight-line distance.
+   * The estimated travel time in hours.
    */
   travelTimeHours: number;
+  /**
+   * A human-readable representation of the distance (e.g., "150 km").
+   */
+  distanceText?: string;
+  /**
+   * A human-readable representation of the travel time (e.g., "2 hours 30 mins").
+   */
+  durationText?: string;
 }
 
-/**
- * Calculates the great-circle distance between two points
- * on the Earth (specified in decimal degrees) using the Haversine formula.
- * This calculates the straight-line distance ("as the crow flies").
- * @param lat1 Latitude of the first point.
- * @param lon1 Longitude of the first point.
- * @param lat2 Latitude of the second point.
- * @param lon2 Longitude of the second point.
- * @returns The straight-line distance in kilometers.
- */
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Radius of the Earth in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  return distance;
-}
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 /**
- * Asynchronously calculates the straight-line distance between any two geographical coordinates
- * using the Haversine formula and provides a highly simplified mock travel time.
+ * Asynchronously calculates the road distance and travel time between two geographical coordinates
+ * using the Google Maps Distance Matrix API.
  *
  * This function works for any valid latitude/longitude pairs, including all locations within India.
  *
  * !! IMPORTANT !!
- * This implementation provides a **straight-line distance**, not the actual road distance.
- * For accurate **road distances** and realistic **travel times** within India (or anywhere),
- * you MUST integrate a real mapping/routing API like:
- * - Google Maps Distance Matrix API
- * - MapmyIndia APIs (specific to India)
- * - Mapbox Directions API
- * - OpenStreetMap routing engines (e.g., OSRM)
- *
- * The mock travel time is based on a simple average speed and does not account for traffic,
- * road types, or other real-world factors.
+ * This implementation requires a valid Google Maps API key with the "Distance Matrix API" enabled.
+ * The API key must be set in the `GOOGLE_MAPS_API_KEY` environment variable.
  *
  * @param origin The starting coordinates.
  * @param destination The destination coordinates.
- * @returns A promise that resolves to a Distance object containing the straight-line distance and a mock travel time.
+ * @returns A promise that resolves to a Distance object containing the road distance and travel time.
+ * @throws Error if the API key is missing or if the API request fails.
  */
 export async function getDistance(origin: Coordinates, destination: Coordinates): Promise<Distance> {
-  // Input validation (optional but good practice)
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.error("[Distance Service] ERROR: GOOGLE_MAPS_API_KEY environment variable is not set.");
+    throw new Error("Google Maps API key is missing. Distance calculation cannot proceed.");
+  }
+
   if (
       origin.latitude < -90 || origin.latitude > 90 ||
       origin.longitude < -180 || origin.longitude > 180 ||
@@ -84,31 +68,58 @@ export async function getDistance(origin: Coordinates, destination: Coordinates)
       throw new Error("Invalid geographical coordinates provided.");
      }
 
+  const originStr = `${origin.latitude},${origin.longitude}`;
+  const destinationStr = `${destination.latitude},${destination.longitude}`;
+  const units = "metric"; // For kilometers and meters
+  const region = "IN"; // Bias results towards India
 
-  const distanceKm = haversineDistance(
-    origin.latitude,
-    origin.longitude,
-    destination.latitude,
-    destination.longitude
-  );
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originStr}&destinations=${destinationStr}&units=${units}&region=${region}&key=${GOOGLE_MAPS_API_KEY}`;
 
-  // Very basic mock travel time: Assumes an arbitrary average speed.
-  // !! REPLACE this with data from a real routing API for accuracy !!
-  const averageSpeedKmph = 50; // Highly unrealistic constant speed
-  const travelTimeHours = distanceKm / averageSpeedKmph;
+  console.log(`[Distance Service] Requesting distance from Google Maps API for Origin: ${originStr}, Dest: ${destinationStr}`);
 
-  console.log(`[Mock Distance Service] Origin: ${JSON.stringify(origin)}, Dest: ${JSON.stringify(destination)}`);
-  console.log(`  - Calculated Straight-Line Distance: ${distanceKm.toFixed(2)} km`);
-  console.log(`  - Highly Mock Travel Time (@${averageSpeedKmph}km/h): ${travelTimeHours.toFixed(1)} hours`);
-  console.warn(`  - WARNING: Using straight-line distance and mock time. Integrate a real routing API for accuracy.`);
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
 
+    if (!response.ok || data.status !== 'OK') {
+      console.error("[Distance Service] Google Maps API Error:", data.status, data.error_message || '');
+      throw new Error(`Google Maps API request failed: ${data.status} - ${data.error_message || 'Unknown error'}`);
+    }
 
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 100)); // Simulate 100-200ms delay
+    if (!data.rows || data.rows.length === 0 || !data.rows[0].elements || data.rows[0].elements.length === 0) {
+      console.error("[Distance Service] Google Maps API returned no results:", data);
+      throw new Error("Google Maps API returned no distance/duration elements.");
+    }
 
+    const element = data.rows[0].elements[0];
 
-  return {
-    distanceKm: parseFloat(distanceKm.toFixed(2)),
-    travelTimeHours: parseFloat(travelTimeHours.toFixed(1)),
-  };
+    if (element.status !== 'OK') {
+      console.warn(`[Distance Service] Google Maps API could not compute route for one or more locations: ${element.status}. Using straight-line as fallback (if implemented) or failing.`);
+      // Note: No straight-line fallback implemented here for now. If element.status is NOT_FOUND or ZERO_RESULTS, this will throw.
+      throw new Error(`Could not compute route: ${element.status}.`);
+    }
+
+    const distanceMeters = element.distance.value; // Distance in meters
+    const durationSeconds = element.duration.value; // Duration in seconds
+
+    const distanceKm = parseFloat((distanceMeters / 1000).toFixed(2));
+    const travelTimeHours = parseFloat((durationSeconds / 3600).toFixed(1)); // Convert seconds to hours
+
+    console.log(`[Distance Service] Successfully fetched data:`);
+    console.log(`  - Road Distance: ${distanceKm} km (${element.distance.text})`);
+    console.log(`  - Travel Time: ${travelTimeHours} hours (${element.duration.text})`);
+
+    return {
+      distanceKm: distanceKm,
+      travelTimeHours: travelTimeHours,
+      distanceText: element.distance.text,
+      durationText: element.duration.text,
+    };
+
+  } catch (error: any) {
+    console.error("[Distance Service] Error calling Google Maps API:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error during distance calculation.";
+    // Propagate a more user-friendly error if possible or specific error for logging
+    throw new Error(`Failed to get distance from Google API: ${errorMessage}`);
+  }
 }

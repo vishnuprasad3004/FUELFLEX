@@ -42,13 +42,17 @@ export async function POST(request: NextRequest) {
              error: 'Price estimation failed',
              details: result.breakdown, // Include the breakdown message from the flow
              currency: result.currency,
-             estimatedPrice: 0 // Ensure price is 0 for errors
+             estimatedPrice: 0, // Ensure price is 0 for errors
+             distanceKm: result.distanceKm,
+             travelTimeHours: result.travelTimeHours,
+             distanceText: result.distanceText,
+             durationText: result.durationText,
           },
           { status: 500 } // Internal Server Error (or appropriate status based on error type)
         );
     }
 
-    // Return the successful result (including fallback results)
+    // Return the successful result (including fallback results and distance/time info)
     return NextResponse.json(result, { status: 200 });
 
   } catch (error: any) {
