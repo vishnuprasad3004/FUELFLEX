@@ -1,10 +1,11 @@
 
-// "use client"; // If using client-side data fetching or interactivity beyond basic display
+"use client"; 
 
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GOODS_CATEGORIES, type Good } from "@/models/goods"; // Assuming Good model is defined
+import { GOODS_CATEGORIES, type Good } from "@/models/goods"; 
 import Image from "next/image";
 import Link from "next/link";
 import { IndianRupee, MapPin, Package, Search, ShoppingCart, Tag, Truck } from "lucide-react";
@@ -82,23 +83,46 @@ const mockGoods: Good[] = [
 
 
 export default function BrowseGoodsPage() {
-  // TODO: Implement actual data fetching from Firestore, filtering, and pagination.
-  // const [goods, setGoods] = React.useState<Good[]>([]);
-  // const [loading, setLoading] = React.useState(true);
-  // const [filters, setFilters] = React.useState({ category: '', searchTerm: '' });
+  const [goods, setGoods] = useState<Good[]>([]);
+  const [filteredGoods, setFilteredGoods] = useState<Good[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
 
-  // React.useEffect(() => {
-  //   const fetchGoods = async () => {
-  //     setLoading(true);
-  //     // Example: const querySnapshot = await getDocs(collection(firestore, "goods"));
-  //     // setGoods(querySnapshot.docs.map(doc => ({ productId: doc.id, ...doc.data() } as Good)));
-  //     setGoods(mockGoods); // Using mock data for now
-  //     setLoading(false);
-  //   };
-  //   fetchGoods();
-  // }, [filters]);
+  useEffect(() => {
+    // Simulate fetching goods data
+    // In a real app, fetch from Firestore here
+    setGoods(mockGoods);
+    setFilteredGoods(mockGoods);
+    setLoading(false);
+  }, []);
 
-  const goodsToDisplay = mockGoods; // In future, this would be 'goods' from state
+  useEffect(() => {
+    let currentGoods = [...goods];
+
+    // Filter by search term
+    if (searchTerm) {
+      currentGoods = currentGoods.filter(good =>
+        good.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        good.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      currentGoods = currentGoods.filter(good => good.category === selectedCategory);
+    }
+
+    setFilteredGoods(currentGoods);
+  }, [searchTerm, selectedCategory, goods]);
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+  };
 
 
   return (
@@ -112,7 +136,7 @@ export default function BrowseGoodsPage() {
           </p>
         </div>
 
-        {/* Filtering Section Placeholder */}
+        {/* Filtering Section */}
         <Card className="p-4 md:p-6 shadow-md">
             <CardHeader className="p-0 pb-4">
                 <CardTitle className="text-xl flex items-center"><Search className="mr-2 h-5 w-5 text-primary"/>Filter Products</CardTitle>
@@ -121,11 +145,16 @@ export default function BrowseGoodsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                     <div className="space-y-1.5">
                         <label htmlFor="searchTerm" className="text-sm font-medium text-muted-foreground">Search by Name/Description</label>
-                        <Input id="searchTerm" placeholder="e.g., Mangoes, Wooden Chair" disabled/>
+                        <Input 
+                            id="searchTerm" 
+                            placeholder="e.g., Mangoes, Wooden Chair" 
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                        />
                     </div>
                     <div className="space-y-1.5">
                         <label htmlFor="categoryFilter" className="text-sm font-medium text-muted-foreground">Filter by Category</label>
-                        <Select disabled>
+                        <Select value={selectedCategory} onValueChange={handleCategoryChange}>
                             <SelectTrigger id="categoryFilter">
                                 <SelectValue placeholder="All Categories" />
                             </SelectTrigger>
@@ -137,21 +166,21 @@ export default function BrowseGoodsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                     <Button className="w-full md:w-auto" disabled><Search className="mr-2 h-4 w-4"/>Apply Filters</Button>
+                     {/* Button is no longer needed as filters apply live */}
+                     {/* <Button className="w-full md:w-auto"><Search className="mr-2 h-4 w-4"/>Apply Filters</Button> */}
                 </div>
-                <p className="text-xs text-muted-foreground mt-3 italic">Filtering and search functionality coming soon.</p>
             </CardContent>
         </Card>
         
 
         {/* Goods Listing Section */}
-        {/* {loading && <p className="text-center py-10">Loading products...</p>} */}
-        {/* {!loading && goodsToDisplay.length === 0 && (
+        {loading && <p className="text-center py-10 text-muted-foreground">Loading products...</p>}
+        {!loading && filteredGoods.length === 0 && (
           <p className="text-center py-10 text-muted-foreground">No goods found matching your criteria.</p>
-        )} */}
+        )}
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {goodsToDisplay.map((good) => (
+          {filteredGoods.map((good) => (
             <Card key={good.productId} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="p-0 relative">
                 {good.images && good.images[0] ? (
