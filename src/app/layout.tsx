@@ -14,6 +14,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 export const metadata: Metadata = {
   title: 'FuelFlex Transport',
   description: 'Smart Goods Transport Platform',
+  manifest: '/manifest.json', // Added manifest for PWA
 };
 
 
