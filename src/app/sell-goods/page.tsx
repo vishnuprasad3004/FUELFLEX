@@ -1,9 +1,84 @@
+"use client";
 
 import { SellGoodsForm } from "@/components/sell-goods-form";
 import { Separator } from "@/components/ui/separator";
-import { Coins, ListChecks, PackagePlus, ShoppingCart, Store } from "lucide-react";
+import { Coins, ListChecks, Loader2, PackagePlus, ShoppingCart, Store, AlertTriangle } from "lucide-react";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/firebase/firebase-config';
+import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { getUserProfile } from '@/services/user-service';
+import type { UserProfile } from '@/models/user';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export default function SellGoodsPage() {
+  const [currentUser, authLoading, authError] = useAuthState(auth);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!currentUser) {
+      router.push('/login?message=Please%20login%20to%20sell%20goods');
+      return;
+    }
+
+    getUserProfile(currentUser.uid)
+      .then(profile => {
+        setUserProfile(profile);
+      })
+      .catch(error => {
+        console.error("Error fetching user profile for sell goods page:", error);
+        // Optionally handle this error, e.g., redirect or show message
+      })
+      .finally(() => {
+        setProfileLoading(false);
+      });
+  }, [currentUser, authLoading, router]);
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading seller information...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+     return (
+        <div className="container mx-auto py-20 px-4 text-center">
+            <Alert variant="destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Authentication Error</AlertTitle>
+                <AlertDescription>
+                    Could not verify your authentication status.
+                    <Button onClick={() => router.push('/login')} className="mt-4 ml-2">Go to Login</Button>
+                </AlertDescription>
+            </Alert>
+        </div>
+     );
+  }
+
+  if (!currentUser || !userProfile) {
+     return (
+      <div className="container mx-auto py-20 px-4 text-center">
+         <Alert variant="destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+                You need to be logged in and have a profile to sell goods.
+                <Button onClick={() => router.push('/login')} className="mt-4 ml-2">Go to Login</Button>
+            </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-start p-4 md:p-8 bg-gradient-to-br from-background to-secondary/10">
       <div className="w-full max-w-4xl space-y-8">

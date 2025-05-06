@@ -1,32 +1,77 @@
-
-"use client"; // Ensure this is a client component if using hooks like useSearchParams
+"use client"; 
 
 import { BookingForm } from "@/components/booking-form";
 import { Separator } from "@/components/ui/separator";
-import { FileText, ShieldCheck, Truck, ShoppingCart } from "lucide-react";
+import { FileText, ShieldCheck, Truck, ShoppingCart, Loader2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from 'next/navigation'; // For reading query params
+import { useSearchParams, useRouter } from 'next/navigation'; 
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/firebase/firebase-config';
+import { Button } from "@/components/ui/button";
 
 
 export default function BookTransportPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const goodsId = searchParams.get('goodsId');
   const [relatedGoodsInfo, setRelatedGoodsInfo] = useState<string | null>(null);
+  
+  const [currentUser, authLoading, authError] = useAuthState(auth);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser && !authError) {
+      router.push('/login?message=Please%20login%20to%20book%20transport');
+    }
+  }, [currentUser, authLoading, authError, router]);
 
   useEffect(() => {
     if (goodsId) {
-      // In a real app, you would fetch details for this goodsId
-      // For demo, just display a message.
-      // e.g., fetch(`/api/goods/${goodsId}`).then(res => res.json()).then(data => setRelatedGoodsInfo(data.productName));
       setRelatedGoodsInfo(`You are booking transport for a specific item (ID: ${goodsId}). Details will be pre-filled or considered.`);
-      
-      // Potentially pass goodsId to BookingForm or use it to pre-fill form fields
-      // This would require BookingForm to accept goodsId as a prop and fetch its details
       console.log("Booking transport for goods ID:", goodsId);
     }
   }, [goodsId]);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading booking information...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+     return (
+        <div className="container mx-auto py-20 px-4 text-center">
+            <Alert variant="destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Authentication Error</AlertTitle>
+                <AlertDescription>
+                    Could not verify your authentication status.
+                    <Button onClick={() => router.push('/login')} className="mt-4 ml-2">Go to Login</Button>
+                </AlertDescription>
+            </Alert>
+        </div>
+     );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="container mx-auto py-20 px-4 text-center">
+         <Alert variant="destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+                You need to be logged in to book transport.
+                <Button onClick={() => router.push('/login')} className="mt-4 ml-2">Go to Login</Button>
+            </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-start p-4 md:p-8 bg-gradient-to-br from-background to-secondary/10">
@@ -54,9 +99,7 @@ export default function BookTransportPage() {
           </Alert>
         )}
         
-        {/* Pass goodsId to BookingForm if it's designed to handle it */}
-        {/* <BookingForm goodsId={goodsId} /> */}
-        <BookingForm /> 
+        <BookingForm goodsId={goodsId} /> 
 
         <Separator className="my-12" />
 

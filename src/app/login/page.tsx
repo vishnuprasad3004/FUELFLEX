@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -25,6 +24,7 @@ import { getUserProfile } from '@/services/user-service';
 import { UserRole } from '@/models/user';
 import { Loader2, LogIn } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -38,6 +38,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentUser, authLoading, authError] = useAuthState(auth);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -46,6 +47,31 @@ export default function LoginPage() {
       password: "",
     },
   });
+
+  React.useEffect(() => {
+    if (!authLoading && currentUser) {
+      // If user is already logged in, fetch profile and redirect
+      getUserProfile(currentUser.uid).then(profile => {
+        if (profile) {
+          switch (profile.role) {
+            case UserRole.ADMIN:
+              router.push('/admin/dashboard');
+              break;
+            case UserRole.TRANSPORT_OWNER:
+              router.push('/owner/dashboard');
+              break;
+            case UserRole.BUYER_SELLER:
+            default:
+              router.push('/');
+              break;
+          }
+        } else {
+          router.push('/'); // Fallback if profile not found
+        }
+      }).catch(() => router.push('/'));
+    }
+  }, [currentUser, authLoading, router]);
+
 
   async function onSubmit(values: FormData) {
     setIsLoading(true);
@@ -60,7 +86,7 @@ export default function LoginPage() {
         
         toast({
           title: "Login Successful!",
-          description: `Welcome back, ${user.email}!`,
+          description: `Welcome back, ${userProfile?.displayName || user.email}!`,
           variant: "default",
         });
 
@@ -73,27 +99,40 @@ export default function LoginPage() {
               router.push('/owner/dashboard');
               break;
             case UserRole.BUYER_SELLER:
-              router.push('/'); // Or a specific marketplace dashboard
+              router.push('/'); 
               break;
             default:
-              router.push('/'); // Fallback to home
+              console.warn("Unknown user role:", userProfile.role, "Defaulting to home page.");
+              router.push('/'); 
           }
         } else {
-          // This case should ideally not happen if profile is created on signup
           console.warn("User profile not found for UID:", user.uid, "Defaulting to home page.");
-          setError("User profile not found. Please contact support.");
+          setError("User profile not found. Please contact support if this issue persists.");
           router.push('/');
         }
       } else {
-        throw new Error("Login failed. User not found.");
+        // This case should generally not be reached if signInWithEmailAndPassword succeeds.
+        throw new Error("Login failed. User details not available after sign-in.");
       }
     } catch (authError: any) {
       console.error("Firebase Auth Error:", authError);
       let errorMessage = "Failed to login. Please check your email and password.";
-      if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
-        errorMessage = "Invalid email or password. Please try again.";
-      } else if (authError.message) {
-        errorMessage = authError.message;
+      if (authError.code) {
+        switch (authError.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            errorMessage = "Invalid email or password. Please try again.";
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = "Too many login attempts. Please try again later.";
+            break;
+          case 'auth/user-disabled':
+            errorMessage = "This account has been disabled.";
+            break;
+          default:
+            errorMessage = authError.message || "An unknown authentication error occurred.";
+        }
       }
       setError(errorMessage);
       toast({
@@ -105,6 +144,17 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   }
+  
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  // If user is already logged in, they will be redirected by useEffect, so no need to render form.
+  if (currentUser) return null;
+
 
   return (
     <div className="flex items-center justify-center py-12 px-4">

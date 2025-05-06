@@ -1,4 +1,3 @@
-
 "use client"; 
 
 import React, { useState, useEffect } from "react";
@@ -8,10 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { GOODS_CATEGORIES, type Good } from "@/models/goods"; 
 import Image from "next/image";
 import Link from "next/link";
-import { IndianRupee, MapPin, Package, Search, ShoppingCart, Tag, Truck } from "lucide-react";
+import { IndianRupee, Loader2, MapPin, Package, Search, ShoppingCart, Tag, Truck, AlertTriangle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/firebase/firebase-config';
+import { useRouter } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Mock Data - Replace with actual data fetching from Firestore
 const mockGoods: Good[] = [
@@ -85,19 +88,28 @@ const mockGoods: Good[] = [
 export default function BrowseGoodsPage() {
   const [goods, setGoods] = useState<Good[]>([]);
   const [filteredGoods, setFilteredGoods] = useState<Good[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true); // Renamed from 'loading' to avoid conflict
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
+  
+  const [currentUser, authLoading, authError] = useAuthState(auth);
+  const router = useRouter();
 
   useEffect(() => {
-    // Simulate fetching goods data
-    // In a real app, fetch from Firestore here
-    setGoods(mockGoods);
-    setFilteredGoods(mockGoods);
-    setLoading(false);
-  }, []);
+    if (authLoading) return;
+    if (!currentUser && !authError) {
+      router.push('/login?message=Please%20login%20to%20browse%20goods');
+    } else if(currentUser) {
+      // Simulate fetching goods data
+      // In a real app, fetch from Firestore here
+      setGoods(mockGoods);
+      setFilteredGoods(mockGoods);
+      setDataLoading(false);
+    }
+  }, [currentUser, authLoading, authError, router]);
 
   useEffect(() => {
+    if (dataLoading) return; // Don't filter if data isn't loaded yet
     let currentGoods = [...goods];
 
     // Filter by search term
@@ -114,7 +126,7 @@ export default function BrowseGoodsPage() {
     }
 
     setFilteredGoods(currentGoods);
-  }, [searchTerm, selectedCategory, goods]);
+  }, [searchTerm, selectedCategory, goods, dataLoading]);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
@@ -124,6 +136,45 @@ export default function BrowseGoodsPage() {
     setSelectedCategory(value);
   };
 
+  if (authLoading || (currentUser && dataLoading)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading goods...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+     return (
+        <div className="container mx-auto py-20 px-4 text-center">
+            <Alert variant="destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Authentication Error</AlertTitle>
+                <AlertDescription>
+                    Could not verify your authentication status.
+                    <Button onClick={() => router.push('/login')} className="mt-4 ml-2">Go to Login</Button>
+                </AlertDescription>
+            </Alert>
+        </div>
+     );
+  }
+
+  if (!currentUser) {
+    // This case should ideally be handled by the redirect, but as a fallback:
+    return (
+      <div className="container mx-auto py-20 px-4 text-center">
+         <Alert variant="destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+                You need to be logged in to browse goods.
+                <Button onClick={() => router.push('/login')} className="mt-4 ml-2">Go to Login</Button>
+            </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-start p-4 md:p-8 bg-gradient-to-br from-background to-secondary/10">
@@ -136,7 +187,6 @@ export default function BrowseGoodsPage() {
           </p>
         </div>
 
-        {/* Filtering Section */}
         <Card className="p-4 md:p-6 shadow-md">
             <CardHeader className="p-0 pb-4">
                 <CardTitle className="text-xl flex items-center"><Search className="mr-2 h-5 w-5 text-primary"/>Filter Products</CardTitle>
@@ -166,16 +216,12 @@ export default function BrowseGoodsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                     {/* Button is no longer needed as filters apply live */}
-                     {/* <Button className="w-full md:w-auto"><Search className="mr-2 h-4 w-4"/>Apply Filters</Button> */}
                 </div>
             </CardContent>
         </Card>
         
-
-        {/* Goods Listing Section */}
-        {loading && <p className="text-center py-10 text-muted-foreground">Loading products...</p>}
-        {!loading && filteredGoods.length === 0 && (
+        {dataLoading && <p className="text-center py-10 text-muted-foreground">Loading products...</p>}
+        {!dataLoading && filteredGoods.length === 0 && (
           <p className="text-center py-10 text-muted-foreground">No goods found matching your criteria.</p>
         )}
         
@@ -237,7 +283,6 @@ export default function BrowseGoodsPage() {
             </Card>
           ))}
         </div>
-        {/* Pagination Placeholder */}
         <div className="text-center mt-8">
             <Button variant="outline" disabled>Load More (Pagination Coming Soon)</Button>
         </div>
@@ -245,24 +290,3 @@ export default function BrowseGoodsPage() {
     </main>
   );
 }
-
-// Individual Good Detail Page (Example Structure - /goods/[productId]/page.tsx)
-// You would create a new file like src/app/goods/[productId]/page.tsx for this.
-/*
-export default function GoodDetailPage({ params }: { params: { productId: string } }) {
-  // Fetch good details based on params.productId from Firestore
-  // const good = fetchGoodById(params.productId);
-  // if (!good) return <p>Good not found.</p>;
-
-  return (
-    <div>
-      <h1>{good.productName}</h1>
-      <p>{good.description}</p>
-      // Display all other good details
-      <Link href={`/book-transport?goodsId=${good.productId}`}>
-        <Button>Book Transport for this Item</Button>
-      </Link>
-    </div>
-  );
-}
-*/

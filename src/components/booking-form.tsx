@@ -41,7 +41,7 @@ import { Calendar as CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { Calendar as ShadCalendar } from "@/components/ui/calendar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { VEHICLE_TYPES, type VehicleType } from "@/models/booking";
+import { VEHICLE_TYPES, type BookingVehicleType } from "@/models/booking"; // Changed import
 
 
 // Define the form schema using Zod
@@ -54,7 +54,7 @@ const formSchema = z.object({
   destinationLongitude: z.number().min(-180).max(180).optional(),
   goodsType: z.string().min(3, { message: "Please describe the type of goods." }), 
   loadWeightKg: z.coerce.number().positive({ message: "Weight must be a positive number." }),
-  vehicleType: z.string().min(1, { message: "Please select a vehicle type." }) as z.ZodType<VehicleType>,
+  vehicleType: z.string().min(1, { message: "Please select a vehicle type." }) as z.ZodType<BookingVehicleType>,
   preferredDate: z.date({ required_error: "Preferred pickup date is required." }), 
   pickupTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: "Invalid time format (HH:MM)." }),
 });
@@ -73,7 +73,11 @@ const isValidCoordinate = (coord: number | undefined | null): coord is number =>
     return typeof coord === 'number' && !isNaN(coord);
 }
 
-export function BookingForm() {
+interface BookingFormProps {
+  goodsId?: string | null; // Optional goodsId prop
+}
+
+export function BookingForm({ goodsId }: BookingFormProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [priceResult, setPriceResult] = React.useState<CalculatePriceOutput | null>(null);
   const [submissionError, setSubmissionError] = React.useState<string | null>(null);
@@ -86,7 +90,7 @@ export function BookingForm() {
       destinationAddress: "Mumbai", 
       goodsType: "General Goods",
       loadWeightKg: 1000,
-      vehicleType: VEHICLE_TYPES[0], // Default to the first vehicle type
+      vehicleType: VEHICLE_TYPES[0], 
       preferredDate: new Date(), 
       pickupTime: "09:00",
       pickupLatitude: EXAMPLE_COORDINATES.delhi.lat,
@@ -95,6 +99,27 @@ export function BookingForm() {
       destinationLongitude: EXAMPLE_COORDINATES.mumbai.lng,
     },
   });
+
+  // TODO: If goodsId is present, you might fetch goods details
+  // and pre-fill parts of the form (e.g., goodsType, pickupAddress from goods location)
+  React.useEffect(() => {
+    if (goodsId) {
+      console.log("BookingForm received goodsId:", goodsId);
+      // Example: Fetch goods details and set form values
+      // async function fetchGoodsData() {
+      //   const goodsData = await getGoodsById(goodsId); // Implement this service
+      //   if (goodsData) {
+      //     form.setValue('goodsType', goodsData.productName); // Or category
+      //     form.setValue('pickupAddress', goodsData.location.address);
+      //     form.setValue('pickupLatitude', goodsData.location.latitude);
+      //     form.setValue('pickupLongitude', goodsData.location.longitude);
+      //     if (goodsData.weightKg) form.setValue('loadWeightKg', goodsData.weightKg);
+      //   }
+      // }
+      // fetchGoodsData();
+    }
+  }, [goodsId, form]);
+
 
   async function onSubmit(values: FormData) {
     setIsLoading(true);
@@ -132,7 +157,7 @@ export function BookingForm() {
       destinationLatitude: destinationCoords.latitude,
       destinationLongitude: destinationCoords.longitude,
       loadWeightKg: values.loadWeightKg, 
-      vehicleType: values.vehicleType, // Pass vehicleType to AI
+      vehicleType: values.vehicleType, 
     };
 
     try {
@@ -143,7 +168,7 @@ export function BookingForm() {
       setPriceResult(result);
 
        if (result.estimatedPrice <= 0 && result.breakdown.toLowerCase().includes('error')) {
-           const isGenkitApiKeyError = result.breakdown.includes('Genkit API Key') || result.breakdown.toLowerCase().includes('google_genai_api_key');
+           const isGenkitApiKeyError = result.breakdown.includes('GOOGLE_GENAI_API_KEY') || result.breakdown.toLowerCase().includes('genkit api key');
            const isMapsApiKeyError = result.breakdown.includes('Google Maps API key') || result.breakdown.toLowerCase().includes('google_maps_api_key');
             
            let detailedError = result.breakdown;
@@ -182,20 +207,19 @@ export function BookingForm() {
              variant: "default",
            });
        }
-       // Placeholder for actual booking creation
+       
        console.log("Form values for booking:", values);
-       // Here you would typically call a service to save the booking to Firestore:
+       console.log("Goods ID associated with this booking (if any):", goodsId);
+       // Example booking data:
        // const bookingDataToSave = {
-       //    ...values,
-       //    userId: 'currentUserFirebaseUid', // Get this from auth state
+       //    ...values, // form data
+       //    goodsId: goodsId, // if available
+       //    userId: auth.currentUser.uid, // Get current user's ID
        //    estimatedCost: result.estimatedPrice,
-       //    status: BookingStatus.PENDING,
-       //    createdAt: new Date(),
-       //    updatedAt: new Date(),
-       //    actionLogs: [{ timestamp: new Date(), actorId: 'currentUserFirebaseUid', actionDescription: 'Booking request submitted by client.' }]
+       //    // ... other booking fields from your model
        // };
-       // await createBookingService(bookingDataToSave);
-       // toast({ title: "Booking Request Submitted!", description: "Admin will review your request."});
+       // await createBookingInFirestore(bookingDataToSave);
+       // toast({ title: "Booking Request Submitted!"});
 
 
     } catch (error: any) {
@@ -467,7 +491,6 @@ export function BookingForm() {
                 <strong className="text-foreground">Details:</strong> {priceResult.breakdown}
               </p>
            </div>
-           {/* Placeholder for Payment and Invoice actions */}
             <div className="w-full flex flex-col sm:flex-row gap-2 mt-4">
                 <Button variant="default" className="flex-1" disabled> 
                     <CreditCard className="mr-2 h-4 w-4" /> Proceed to Confirm Booking (Coming Soon)
@@ -497,4 +520,3 @@ export function BookingForm() {
     </Card>
   );
 }
-

@@ -1,21 +1,29 @@
+"use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { MapPin, Fuel, IndianRupee, Truck } from "lucide-react";
+import { MapPin, Fuel, IndianRupee, Truck, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/firebase/firebase-config';
+import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { getUserProfile } from '@/services/user-service';
+import { UserRole, type UserProfile } from '@/models/user';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
-// Mock Data Structure - Replace with actual data fetching
 interface Vehicle {
   id: string;
-  name: string; // e.g., "Truck MH 12 AB 1234"
+  name: string; 
   location: {
     lat: number;
     lng: number;
-    description: string; // e.g., "Near Pune, MH"
+    description: string; 
   };
-  fuelLevelPercent: number; // 0-100
-  fastagBalance: number; // In INR
+  fuelLevelPercent: number; 
+  fastagBalance: number; 
 }
 
 const mockVehicles: Vehicle[] = [
@@ -50,15 +58,84 @@ const mockVehicles: Vehicle[] = [
 ];
 
 export default function OwnerDashboardPage() {
+  const [currentUser, authLoading, authError] = useAuthState(auth);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!currentUser) {
+      router.push('/login?message=Transport%20owner%20access%20required');
+      return;
+    }
+
+    getUserProfile(currentUser.uid)
+      .then(profile => {
+        if (profile && profile.role === UserRole.TRANSPORT_OWNER) {
+          setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+          router.push('/?message=Unauthorized%20access');
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching owner profile:", error);
+        router.push('/login?message=Error%20verifying%20owner%20status');
+      })
+      .finally(() => {
+        setProfileLoading(false);
+      });
+  }, [currentUser, authLoading, router]);
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="container mx-auto py-20 px-4 text-center flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Verifying transport owner access...</p>
+      </div>
+    );
+  }
+  
+  if (authError) {
+     return (
+        <div className="container mx-auto py-20 px-4 text-center">
+            <Alert variant="destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Authentication Error</AlertTitle>
+                <AlertDescription>
+                    Could not verify your authentication status. Please try logging in again.
+                    <Button onClick={() => router.push('/login')} className="mt-4">Go to Login</Button>
+                </AlertDescription>
+            </Alert>
+        </div>
+     );
+  }
+
+  if (!userProfile || userProfile.role !== UserRole.TRANSPORT_OWNER) {
+     return (
+      <div className="container mx-auto py-20 px-4 text-center">
+        <Alert variant="destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+                You do not have permission to view this page.
+                 <Button onClick={() => router.push('/')} className="mt-4">Go to Home</Button>
+            </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
-    // Removed main container styling, rely on root layout and card for centering/padding
     <div className="container mx-auto py-8 px-4">
       <Card className="w-full max-w-5xl mx-auto shadow-lg border border-border rounded-lg">
         <CardHeader className="text-center">
           <Truck className="mx-auto h-10 w-10 text-primary mb-2" />
           <CardTitle className="text-3xl font-bold text-primary">Owner Dashboard</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Overview of your vehicle fleet status. (Note: This page is not currently protected by authentication).
+            Overview of your vehicle fleet status. Welcome, {userProfile.displayName || userProfile.email}!
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -79,7 +156,6 @@ export default function OwnerDashboardPage() {
                     <TableCell>
                        <div className="flex items-center gap-2">
                          <MapPin className="h-4 w-4 text-secondary flex-shrink-0" />
-                         {/* Placeholder for map - using text description for now */}
                          <span>{vehicle.location.description} ({vehicle.location.lat.toFixed(4)}, {vehicle.location.lng.toFixed(4)})</span>
                        </div>
                     </TableCell>
@@ -101,10 +177,9 @@ export default function OwnerDashboardPage() {
               </TableBody>
             </Table>
           </div>
-          {/* Placeholder for Map View */}
           <div className="mt-8 p-4 border border-dashed border-border rounded-lg text-center bg-muted/50">
             <Image
-              src="https://picsum.photos/seed/map/600/300" // Placeholder map image
+              src="https://picsum.photos/seed/map/600/300" 
               alt="Placeholder Map"
               width={600}
               height={300}

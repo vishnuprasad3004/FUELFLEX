@@ -1,45 +1,31 @@
-
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
-import { Home, LogIn, UserPlus, LayoutDashboard, ShieldCheck, PackagePlus, ShoppingCart, Store, LogOut } from 'lucide-react';
-// import { auth } from '@/firebase/firebase-config'; // Import auth if client-side checks are needed here
-// import { useAuthState } from 'react-firebase-hooks/auth'; // If using react-firebase-hooks
+import { Home, PackagePlus, ShoppingCart, Store } from 'lucide-react';
+import { AuthenticatedNavLinks } from '@/components/auth/authenticated-nav-links';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
   title: 'FuelFlex Transport',
   description: 'Smart Goods Transport Platform',
-  manifest: '/manifest.json', // Added manifest for PWA
+  manifest: '/manifest.json',
 };
-
-
-// This is a server component, so direct Firebase auth state access is tricky without specific Next.js patterns.
-// For dynamic links based on auth, consider a client component wrapper for the nav or parts of it,
-// or pass auth state from a higher-order component if using server-side session management.
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // const [user, loading, error] = useAuthState(auth); // Example if using hooks in a client component part of layout
-
-  // Placeholder: In a real app, you'd conditionally render Login/Signup vs Logout/Dashboard links
-  // based on authentication state.
-  const isAuthenticated = false; // Replace with actual auth check logic if possible server-side or via context/client component
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-14 items-center">
             <Link href="/" className="mr-6 flex items-center space-x-2">
-              {/* Placeholder/Simple Logo */}
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary">
                 <path d="M19 17h2l-3.3-3.3"/><path d="M5 7H3l3.3 3.3"/><path d="M12 12l1.7 1.7"/><path d="m21 21-1.7-1.7"/><path d="m3 3 1.7 1.7"/><path d="m7 21 3.3-3.3"/><path d="M17 3l-3.3 3.3"/><path d="M12 12l-1.7-1.7"/><path d="m3 21 18-18"/><path d="M7 3l3.3 3.3"/>
               </svg>
@@ -67,42 +53,7 @@ export default function RootLayout({
                 </Button>
               </Link>
               
-              {/* Conditional rendering for auth links (conceptual) */}
-              {/* This would ideally be in a client component that uses useAuthState or similar */}
-              {!isAuthenticated && (
-                <>
-                  <Link href="/login" passHref>
-                    <Button variant="ghost" className="text-sm font-medium">
-                      <LogIn className="mr-1 h-4 w-4" /> Login
-                    </Button>
-                  </Link>
-                  <Link href="/signup" passHref>
-                    <Button variant="ghost" className="text-sm font-medium">
-                      <UserPlus className="mr-1 h-4 w-4" /> Sign Up
-                    </Button>
-                  </Link>
-                </>
-              )}
-              
-              {/* Links that might require authentication and specific roles */}
-              {/* These links would typically be shown if isAuthenticated is true and role matches */}
-              {/* For simplicity, they are always shown here. Actual visibility depends on auth state and role. */}
-              <Link href="/owner/dashboard" passHref>
-                <Button variant="ghost" className="text-sm font-medium">
-                  <LayoutDashboard className="mr-1 h-4 w-4" /> Owner
-                </Button>
-              </Link>
-              <Link href="/admin/dashboard" passHref>
-                <Button variant="ghost" className="text-sm font-medium">
-                  <ShieldCheck className="mr-1 h-4 w-4" /> Admin
-                </Button>
-              </Link>
-              {/* Example Logout Button - would need onClick handler for Firebase signout */}
-              {/* {isAuthenticated && (
-                 <Button variant="ghost" className="text-sm font-medium" onClick={async () => { await auth.signOut(); router.push('/'); } }>
-                   <LogOut className="mr-1 h-4 w-4" /> Logout
-                 </Button>
-              )} */}
+              <AuthenticatedNavLinks />
             </nav>
           </div>
         </header>
