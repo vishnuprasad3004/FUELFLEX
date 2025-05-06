@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, Filter, Search, ShieldCheck, UserCog, DollarSign, Map } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
+import { Separator } from "@/components/ui/separator"; // Added import
 
 // Mock Data - Replace with actual data fetching and types
 interface Trip {
