@@ -1,4 +1,5 @@
 
+"use client"; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -8,27 +9,28 @@ import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { Separator } from "@/components/ui/separator"; 
 import { StorageDemoWidget } from "@/components/admin/storage-demo-widget"; 
-import type { Booking, ActionLogEntry } from "@/models/booking";
-import { BookingStatus, RepaymentStatus, VEHICLE_TYPES } from "@/models/booking";
+import type { Booking } from "@/models/booking";
+import { BookingStatus, RepaymentStatus, VEHICLE_TYPES } from "@/models/booking"; // Adjusted import
 import { format } from 'date-fns'; // For date formatting
 
 // Mock Data - Replace with actual data fetching and types
 const mockBookings: Booking[] = [
   {
     bookingId: "B001",
-    clientId: "C001",
-    clientName: "ABC Corp",
-    from: { address: "Warehouse A, Delhi", latitude: 28.6139, longitude: 77.2090 },
-    to: { address: "Client Site, Mumbai", latitude: 19.0760, longitude: 72.8777 },
-    goodsType: "Electronics",
-    weightKg: 1200,
+    buyerId: "C001", // Updated from clientId
+    // clientName: "ABC Corp", // Removed, use buyer/seller info from user profiles
+    goodsId: "G123",
+    sellerId: "S001",
+    dropoffLocation: { address: "Client Site, Mumbai", latitude: 19.0760, longitude: 72.8777 },
+    // goodsType: "Electronics", // This would come from the linked 'goods' document
+    // weightKg: 1200, // This would come from the linked 'goods' document
     vehicleType: VEHICLE_TYPES[1], // Medium Truck
-    preferredDate: new Date("2024-08-15T10:00:00Z"),
+    preferredPickupDate: new Date("2024-08-15T10:00:00Z"),
     status: BookingStatus.IN_TRANSIT,
     driverId: "D001",
-    driverName: "Ramesh Kumar",
-    estimatedCost: 12500,
-    fuelCreditRequested: true,
+    driverName: "Ramesh Kumar", // This might come from a driver's profile
+    estimatedTransportCost: 12500,
+    // fuelCreditRequested: true, // Now optional in Booking model
     fuelCost: 4500,
     repayAmount: 4750, // Includes small interest/fee
     repayDueDate: new Date("2024-09-01T10:00:00Z"),
@@ -43,20 +45,18 @@ const mockBookings: Booking[] = [
   },
   {
     bookingId: "B002",
-    clientId: "C002",
-    clientName: "XYZ Ltd",
-    from: { address: "Factory Hub, Chennai", latitude: 13.0827, longitude: 80.2707 },
-    to: { address: "Retail Outlet, Bengaluru", latitude: 12.9716, longitude: 77.5946 },
-    goodsType: "Textiles",
-    weightKg: 800,
+    buyerId: "C002",
+    goodsId: "G456",
+    sellerId: "S002",
+    dropoffLocation: { address: "Retail Outlet, Bengaluru", latitude: 12.9716, longitude: 77.5946 },
     vehicleType: VEHICLE_TYPES[0], // Small Truck
-    preferredDate: new Date("2024-08-10T14:00:00Z"),
+    preferredPickupDate: new Date("2024-08-10T14:00:00Z"),
     status: BookingStatus.DELIVERED,
     driverId: "D002",
     driverName: "Suresh Patil",
-    estimatedCost: 8000,
-    finalCost: 7800,
-    fuelCreditRequested: false,
+    estimatedTransportCost: 8000,
+    finalTransportCost: 7800,
+    // fuelCreditRequested: false,
     repayStatus: RepaymentStatus.NOT_APPLICABLE,
     createdAt: new Date("2024-07-25T10:00:00Z"),
     updatedAt: new Date("2024-07-27T16:00:00Z"),
@@ -65,21 +65,19 @@ const mockBookings: Booking[] = [
       { timestamp: new Date("2024-07-27T16:00:00Z"), actorId: "D002", actionDescription: "Status changed to delivered" },
     ],
   },
-  {
+    {
     bookingId: "B003",
-    clientId: "C003",
-    clientName: "PQR Inc",
-    from: { address: "Port Area, Kolkata", latitude: 22.5726, longitude: 88.3639 },
-    to: { address: "Distribution Center, Patna", latitude: 25.5941, longitude: 85.1376 },
-    goodsType: "Industrial Parts",
-    weightKg: 2500,
+    buyerId: "C003",
+    goodsId: "G789",
+    sellerId: "S003",
+    dropoffLocation: { address: "Distribution Center, Patna", latitude: 25.5941, longitude: 85.1376 },
     vehicleType: VEHICLE_TYPES[2], // Large Truck
-    preferredDate: null, // No preference
+    preferredPickupDate: null, // No preference
     status: BookingStatus.PAYMENT_DUE,
     driverId: "D003",
     driverName: "Anil Singh",
-    estimatedCost: 9500,
-    finalCost: 9500,
+    estimatedTransportCost: 9500,
+    finalTransportCost: 9500,
     fuelCreditRequested: true,
     fuelCost: 3000,
     repayAmount: 3150,
@@ -98,10 +96,13 @@ const getStatusBadgeVariant = (status: BookingStatus | RepaymentStatus) => {
     case RepaymentStatus.PAID:
       return "default"; // Greenish or primary
     case BookingStatus.IN_TRANSIT:
-    case BookingStatus.ASSIGNED:
+    case BookingStatus.AWAITING_PICKUP: // Added AWAITING_PICKUP
     case RepaymentStatus.PENDING:
       return "secondary"; // Bluish or yellowish
-    case BookingStatus.CANCELLED:
+    case BookingStatus.CANCELLED_BY_ADMIN: // Added specific cancelled states
+    case BookingStatus.CANCELLED_BY_BUYER:
+    case BookingStatus.CANCELLED_BY_SELLER:
+    case BookingStatus.FAILED:
     case BookingStatus.ON_HOLD: // Could be warning
     case RepaymentStatus.OVERDUE:
       return "destructive"; // Reddish
@@ -117,6 +118,27 @@ const getStatusBadgeVariant = (status: BookingStatus | RepaymentStatus) => {
 
 
 export default function AdminDashboardPage() {
+  // TODO: Add authentication check here. Redirect if not admin.
+  // const { user, loading } = useAuth(); // Assuming a custom auth hook
+  // const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  //
+  // useEffect(() => {
+  //   if (user && !loading) {
+  //     getUserProfile(user.uid).then(profile => {
+  //       if (profile?.role !== UserRole.ADMIN) {
+  //         router.push('/'); // Or a "not authorized" page
+  //       }
+  //       setUserProfile(profile);
+  //     });
+  //   } else if (!loading && !user) {
+  //     router.push('/login');
+  //   }
+  // }, [user, loading, router]);
+  //
+  // if (loading || !userProfile || userProfile.role !== UserRole.ADMIN) {
+  //   return <div className="container mx-auto py-8 px-4 text-center">Loading admin data or redirecting...</div>;
+  // }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Card className="w-full max-w-7xl mx-auto shadow-lg border border-border rounded-lg">
@@ -124,7 +146,7 @@ export default function AdminDashboardPage() {
           <ShieldCheck className="mx-auto h-12 w-12 text-primary mb-3" />
           <CardTitle className="text-3xl font-bold text-primary">Admin Dashboard</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Manage and monitor platform bookings and operations.
+            Manage and monitor platform bookings, users, and operations. (Access should be restricted to Admin roles).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -133,7 +155,7 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
               <h2 className="text-2xl font-semibold text-primary flex items-center"><Package className="mr-2 h-6 w-6"/> Booking Management</h2>
               <div className="flex items-center gap-2">
-                <Input placeholder="Search by Booking ID, Client, Driver..." className="max-w-xs" />
+                <Input placeholder="Search by Booking ID, Buyer, Driver..." className="max-w-xs" />
                 <Button variant="outline"><Filter className="mr-1 h-4 w-4" /> Filter</Button>
               </div>
             </div>
@@ -142,10 +164,9 @@ export default function AdminDashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Booking ID</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Route</TableHead>
-                    <TableHead>Goods/Vehicle</TableHead>
-                    <TableHead><Calendar className="inline-block mr-1 h-4 w-4"/>Date</TableHead>
+                    <TableHead>Buyer ID</TableHead>
+                    <TableHead>Goods ID</TableHead>
+                    <TableHead>Vehicle/Pickup</TableHead>
                     <TableHead>Driver</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right"><DollarSign className="inline-block mr-1 h-4 w-4"/>Cost (INR)</TableHead>
@@ -157,43 +178,41 @@ export default function AdminDashboardPage() {
                   {mockBookings.map((booking) => (
                     <TableRow key={booking.bookingId}>
                       <TableCell className="font-medium">{booking.bookingId}</TableCell>
-                      <TableCell>{booking.clientName || booking.clientId}</TableCell>
+                      <TableCell>{booking.buyerId}</TableCell>
                       <TableCell className="text-xs">
-                        <div className="font-semibold">{booking.from.address}</div>
-                        <div className="text-muted-foreground">to {booking.to.address}</div>
+                         <div>{booking.goodsId}</div>
+                         <div className="text-muted-foreground">Seller: {booking.sellerId}</div>
                       </TableCell>
                       <TableCell className="text-xs">
-                        <div><span className="font-semibold">Type:</span> {booking.goodsType}</div>
-                        <div><span className="font-semibold">Weight:</span> {booking.weightKg} kg</div>
-                        <div><span className="font-semibold">Vehicle:</span> {booking.vehicleType}</div>
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {booking.preferredDate ? format(new Date(booking.preferredDate), "PPp") : 'ASAP'}
-                        <div className="text-muted-foreground">Created: {format(new Date(booking.createdAt), "PP")}</div>
+                        <div><span className="font-semibold">Vehicle:</span> {booking.vehicleType || 'N/A'}</div>
+                        <div className="text-muted-foreground">
+                            Pickup: {booking.preferredPickupDate ? format(new Date(booking.preferredPickupDate), "PPp") : 'ASAP'}
+                        </div>
+                         <div className="text-muted-foreground">Drop: {booking.dropoffLocation.address}</div>
                       </TableCell>
                       <TableCell>{booking.driverName || booking.driverId || 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(booking.status)} className="capitalize text-xs">
-                          {booking.status.replace('_', ' ')}
+                          {booking.status.replace(/_/g, ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
-                        {booking.finalCost?.toLocaleString('en-IN') || booking.estimatedCost?.toLocaleString('en-IN') || 'N/A'}
-                        {booking.finalCost && booking.estimatedCost && booking.finalCost !== booking.estimatedCost && (
-                          <div className="text-xs text-muted-foreground line-through">{booking.estimatedCost.toLocaleString('en-IN')}</div>
+                        {booking.finalTransportCost?.toLocaleString('en-IN') || booking.estimatedTransportCost?.toLocaleString('en-IN') || 'N/A'}
+                        {booking.finalTransportCost && booking.estimatedTransportCost && booking.finalTransportCost !== booking.estimatedTransportCost && (
+                          <div className="text-xs text-muted-foreground line-through">{booking.estimatedTransportCost.toLocaleString('en-IN')}</div>
                         )}
                       </TableCell>
                       <TableCell className="text-xs">
                         {booking.fuelCreditRequested ? (
                           <>
                             <div>Amt: <span className="font-mono">{booking.repayAmount?.toLocaleString('en-IN') || 'N/A'}</span></div>
-                            <Badge variant={getStatusBadgeVariant(booking.repayStatus)} className="capitalize mt-1">
-                              {booking.repayStatus.replace('_', ' ')}
+                            <Badge variant={getStatusBadgeVariant(booking.repayStatus)} className="capitalize mt-1 text-xs">
+                              {booking.repayStatus.replace(/_/g, ' ')}
                             </Badge>
                             {booking.repayDueDate && <div className="text-muted-foreground mt-0.5">Due: {format(new Date(booking.repayDueDate), "PP")}</div>}
                           </>
                         ) : (
-                          <Badge variant="outline">No Credit</Badge>
+                          <Badge variant="outline" className="text-xs">No Credit</Badge>
                         )}
                       </TableCell>
                       <TableCell>
@@ -220,13 +239,15 @@ export default function AdminDashboardPage() {
 
           <Separator />
 
-          {/* User Management (Placeholder) */}
+          {/* User Management Section */}
           <section>
             <h2 className="text-2xl font-semibold text-primary mb-4 flex items-center"><Users className="mr-2 h-6 w-6"/> User Management</h2>
+            {/* TODO: Fetch and display users from Firestore 'users' collection */}
             <div className="p-6 border border-dashed border-border rounded-lg text-center bg-muted/50">
                 <Users className="mx-auto h-12 w-12 text-muted-foreground mb-3"/>
                 <p className="text-muted-foreground">
-                    User management (clients, drivers, admins) and role assignments will be available here.
+                    User listing (clients, drivers, admins) and role assignments will be available here.
+                    (Requires fetching from 'users' collection in Firestore).
                 </p>
                 <Button variant="secondary" className="mt-4" disabled>Manage Users (Coming Soon)</Button>
             </div>
