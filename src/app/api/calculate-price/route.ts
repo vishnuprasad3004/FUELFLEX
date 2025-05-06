@@ -1,7 +1,22 @@
 // src/app/api/calculate-price/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { calculatePrice, CalculatePriceInputSchema, type CalculatePriceInput, type CalculatePriceOutput } from '@/ai/flows/ai-powered-pricing';
+import { calculatePrice, CalculatePriceInputSchema as ServerCalculatePriceInputSchema, type CalculatePriceInput, type CalculatePriceOutput } from '@/ai/flows/ai-powered-pricing';
 import { z } from 'zod';
+import { VEHICLE_TYPES } from '@/models/booking';
+
+
+// Ensure the API route's schema matches the flow's input schema, especially for vehicleType
+const ApiCalculatePriceInputSchema = ServerCalculatePriceInputSchema.extend({
+  pickupLatitude: z.number(),
+  pickupLongitude: z.number(),
+  destinationLatitude: z.number(),
+  destinationLongitude: z.number(),
+  loadWeightKg: z.number(),
+  vehicleType: z.string().refine(val => VEHICLE_TYPES.includes(val as any), { // Or use a more generic string() if VEHICLE_TYPES is too restrictive for API flexibility
+    message: `Invalid vehicle type. Must be one of: ${VEHICLE_TYPES.join(', ')}`
+  }),
+});
+
 
 /**
  * POST handler for the /api/calculate-price endpoint.
@@ -14,14 +29,14 @@ export async function POST(request: NextRequest) {
     console.log('[API Route /api/calculate-price] Received request body:', body);
 
     // Validate the incoming request body against the Zod schema
-    const validationResult = CalculatePriceInputSchema.safeParse(body);
+    const validationResult = ApiCalculatePriceInputSchema.safeParse(body);
 
     if (!validationResult.success) {
       console.error('[API Route /api/calculate-price] Invalid request body:', validationResult.error.errors);
       return NextResponse.json(
         {
           error: 'Invalid request body',
-          details: validationResult.error.errors,
+          details: validationResult.error.flatten().fieldErrors,
         },
         { status: 400 } // Bad Request
       );
@@ -83,6 +98,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     message: 'Send a POST request to this endpoint with JSON body matching CalculatePriceInput schema to get a price estimate.',
-    schema: CalculatePriceInputSchema.shape, // Provide the expected input schema shape
+    schema: ApiCalculatePriceInputSchema.shape, // Provide the expected input schema shape
   });
 }
+
