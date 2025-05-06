@@ -18,7 +18,7 @@ To get started, take a look at `src/app/page.tsx`.
 *   **Admin Dashboard (Placeholder):** A dedicated dashboard for administrators (`/admin/dashboard`) to monitor trips, repayments, and overall platform activity (currently a placeholder).
 *   **Payment Gateway Integration (Placeholder):** The booking form includes a placeholder to proceed to payment, with future plans to integrate UPI and/or Stripe for booking fees and fuel credit repayments.
 *   **Automated Reminders (Planned):** Future integration of Firebase Cloud Functions for automated due-date reminders for fuel credit.
-*   **PDF Invoices (Planned):** Future capability to generate and download PDF invoices, potentially stored in Firebase Storage.
+*   **PDF Invoices (Planned):** Future capability to generate and download PDF invoices, potentially stored in **Firebase Storage**.
 *   **Push Notifications (Planned):** Firebase Cloud Messaging (FCM) will be used to send real-time updates to users about bookings, repayments, and trip status.
 *   **Role-Based Access Control (Planned):** Implementation of RBAC to ensure clients, drivers, and admins can only access features relevant to their roles. This will involve enhancing Firestore security rules.
 *   **Multilingual Support (Planned):** The platform aims to support multiple languages using Next.js internationalization libraries (e.g., `next-intl`) or similar solutions.
@@ -28,7 +28,7 @@ To get started, take a look at `src/app/page.tsx`.
 *   **Frontend:** Next.js (React Framework), TypeScript, Tailwind CSS, ShadCN UI Components
 *   **Backend/AI:** Genkit, Google Generative AI (Gemini models)
 *   **Services:** Google Distance Matrix API
-*   **Database/Auth (Planned):** Firebase (Firestore, Authentication, Cloud Functions, Storage, FCM)
+*   **Database/Auth/Storage (Planned & Partially Integrated):** Firebase (Firestore, Authentication, **Cloud Storage**, Cloud Functions, FCM)
 *   **Deployment (Typical):** Vercel, Firebase Hosting
 
 ## Getting Started
@@ -37,11 +37,11 @@ To get started, take a look at `src/app/page.tsx`.
 
 *   Node.js (v18 or later recommended)
 *   npm or yarn
-*   A Firebase project (for future database, auth, and other Firebase service integrations)
+*   A Firebase project (with Firestore, Authentication, and Cloud Storage enabled)
 
 ### Environment Variables
 
-Create a `.env` file in the project root and add the following variables:
+Create a `.env` file in the project root and add the following variables. **Replace `YOUR_..._HERE` with your actual keys and project details.**
 
 ```env
 # Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
@@ -52,16 +52,19 @@ GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_GENAI_API_KEY_HERE
 # Ensure "Distance Matrix API" and "Maps JavaScript API" (for live tracking) are enabled for this key.
 GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 
-# Firebase configuration (Add these when integrating Firebase)
-# NEXT_PUBLIC_FIREBASE_API_KEY=
-# NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-# NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-# NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-# NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-# NEXT_PUBLIC_FIREBASE_APP_ID=
+# Firebase configuration
+# Get these from your Firebase project settings:
+# Project settings > General > Your apps > Web app > SDK setup and configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=YOUR_FIREBASE_STORAGE_BUCKET
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_FIREBASE_MESSAGING_SENDER_ID
+NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
+# NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID # Optional, for Analytics
 ```
 
-**Replace `YOUR_..._KEY_HERE` with your actual API keys.**
+**Replace `YOUR_..._HERE` with your actual API keys and Firebase project details.**
 
 ### Installation
 
