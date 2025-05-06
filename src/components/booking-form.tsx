@@ -5,7 +5,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { MapPin, Package, Calendar, Clock, Truck, Building, Home, CircleDollarSign, Loader2, IndianRupee, AlertCircle, CreditCard, FileText } from "lucide-react";
+import { MapPin, Package, Calendar, Clock, Truck, Building, Home, CircleDollarSign, Loader2, IndianRupee, AlertCircle, CreditCard, FileText, Car } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,13 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { calculatePrice, type CalculatePriceInput, type CalculatePriceOutput } from "@/ai/flows/ai-powered-pricing";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -35,6 +42,7 @@ import { Calendar as CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { Calendar as ShadCalendar } from "@/components/ui/calendar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { VEHICLE_TYPES, type VehicleType } from "@/models/booking";
 
 
 // Define the form schema using Zod
@@ -45,9 +53,10 @@ const formSchema = z.object({
   pickupLongitude: z.number().min(-180).max(180).optional(),
   destinationLatitude: z.number().min(-90).max(90).optional(),
   destinationLongitude: z.number().min(-180).max(180).optional(),
-  goodsDescription: z.string().min(3, { message: "Please describe the goods." }),
+  goodsType: z.string().min(3, { message: "Please describe the type of goods." }), // Renamed from goodsDescription
   loadWeightKg: z.coerce.number().positive({ message: "Weight must be a positive number." }),
-  pickupDate: z.date({ required_error: "Pickup date is required." }),
+  vehicleType: z.string().min(1, { message: "Please select a vehicle type." }), // New field
+  preferredDate: z.date({ required_error: "Preferred pickup date is required." }), // Renamed from pickupDate
   pickupTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: "Invalid time format (HH:MM)." }),
 });
 
@@ -76,9 +85,10 @@ export function BookingForm() {
     defaultValues: {
       pickupAddress: "Delhi", 
       destinationAddress: "Mumbai", 
-      goodsDescription: "",
+      goodsType: "",
       loadWeightKg: undefined,
-      pickupDate: new Date(), 
+      vehicleType: VEHICLE_TYPES[0], // Default to the first vehicle type
+      preferredDate: new Date(), 
       pickupTime: "09:00",
       pickupLatitude: EXAMPLE_COORDINATES.delhi.lat,
       pickupLongitude: EXAMPLE_COORDINATES.delhi.lng,
@@ -87,6 +97,10 @@ export function BookingForm() {
     },
   });
 
+  // TODO: This onSubmit function needs to be updated to create a `Booking` document in Firestore
+  // and not just call the `calculatePrice` flow. This is a significant change and would involve
+  // interacting with Firestore services, which are not fully defined yet.
+  // For now, it will still primarily focus on price estimation.
   async function onSubmit(values: FormData) {
     setIsLoading(true);
     setPriceResult(null); 
@@ -101,7 +115,7 @@ export function BookingForm() {
         longitude: values.destinationLongitude,
     };
     console.log(
-      `[Demo] Using coordinates for calculation - Pickup: ${pickupCoords.latitude}, ${pickupCoords.longitude} | Dest: ${destinationCoords.latitude}, ${destinationCoords.longitude}`
+      `[BookingForm] Using coordinates for calculation - Pickup: ${pickupCoords.latitude}, ${pickupCoords.longitude} | Dest: ${destinationCoords.latitude}, ${destinationCoords.longitude}`
     );
      if (!isValidCoordinate(pickupCoords.latitude) || !isValidCoordinate(pickupCoords.longitude) ||
          !isValidCoordinate(destinationCoords.latitude) || !isValidCoordinate(destinationCoords.longitude)) {
@@ -123,6 +137,7 @@ export function BookingForm() {
       destinationLatitude: destinationCoords.latitude,
       destinationLongitude: destinationCoords.longitude,
       loadWeightKg: values.loadWeightKg, 
+      // vehicleType could be passed to the AI if the pricing model supports it
     };
 
     try {
@@ -172,19 +187,25 @@ export function BookingForm() {
              variant: "default",
            });
        }
+       // Placeholder for actual booking creation
+       console.log("Form values for booking:", values);
+       // Here you would typically call a service to save the booking to Firestore:
+       // await createBookingService({...values, estimatedCost: result.estimatedPrice });
+       // toast({ title: "Booking Request Submitted!", description: "Admin will review your request."});
+
 
     } catch (error: any) {
-      console.error("[BookingForm] Error during calculatePrice call:", error);
-      let errorMessage = "An unexpected error occurred while connecting to the pricing service.";
+      console.error("[BookingForm] Error during calculatePrice call or booking submission:", error);
+      let errorMessage = "An unexpected error occurred while processing your request.";
 
       if (error instanceof Error) {
-         errorMessage = `Connection Error: ${error.message}. Please check your network and try again.`;
+         errorMessage = `Processing Error: ${error.message}. Please check your network and try again.`;
       }
 
       setSubmissionError(errorMessage);
       toast({
         variant: "destructive",
-        title: "Error Connecting",
+        title: "Error Processing Request",
         description: errorMessage,
       });
        setPriceResult({
@@ -216,10 +237,17 @@ export function BookingForm() {
     if (pickupCoords) {
         form.setValue('pickupLatitude', pickupCoords.lat, { shouldValidate: false });
         form.setValue('pickupLongitude', pickupCoords.lng, { shouldValidate: false });
+    } else {
+        // Clear if address doesn't match example, prompting manual entry or better geocoding
+        form.setValue('pickupLatitude', undefined, { shouldValidate: false });
+        form.setValue('pickupLongitude', undefined, { shouldValidate: false });
     }
     if (destCoords) {
         form.setValue('destinationLatitude', destCoords.lat, { shouldValidate: false });
         form.setValue('destinationLongitude', destCoords.lng, { shouldValidate: false });
+    } else {
+        form.setValue('destinationLatitude', undefined, { shouldValidate: false });
+        form.setValue('destinationLongitude', undefined, { shouldValidate: false });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch('pickupAddress'), form.watch('destinationAddress')]); 
@@ -229,8 +257,8 @@ export function BookingForm() {
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center text-primary">Book Your Transport</CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          Enter shipment details for an AI-powered price estimate. Uses Google Distance Matrix API.
-          Supports India locations. (Demo uses example coordinates for major cities).
+          Enter shipment details for an AI-powered price estimate and to place a booking. Supports India locations.
+          (Demo uses example coordinates for major cities).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -244,11 +272,11 @@ export function BookingForm() {
                   <FormItem>
                     <FormLabel className="flex items-center"><Home className="mr-2 h-4 w-4 text-secondary" /> Pickup Address (India)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Delhi" {...field} />
+                      <Input placeholder="e.g., Delhi, Mumbai, or specific address" {...field} />
                     </FormControl>
                     <FormMessage />
                     <FormDescription className="text-xs">
-                      (Type major city name like Delhi, Mumbai for demo coordinates)
+                      (Type major city name for demo coords, or full address for future geocoding)
                     </FormDescription>
                   </FormItem>
                 )}
@@ -260,11 +288,11 @@ export function BookingForm() {
                   <FormItem>
                     <FormLabel className="flex items-center"><Building className="mr-2 h-4 w-4 text-secondary" /> Destination Address (India)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Mumbai" {...field} />
+                      <Input placeholder="e.g., Mumbai, Kolkata, or specific address" {...field} />
                     </FormControl>
                     <FormMessage />
-                    <FormDescription className="text-xs">
-                      (Type major city name like Mumbai, Kolkata for demo coordinates)
+                     <FormDescription className="text-xs">
+                      (Type major city name for demo coords, or full address for future geocoding)
                     </FormDescription>
                   </FormItem>
                 )}
@@ -273,38 +301,66 @@ export function BookingForm() {
 
              <FormField
               control={form.control}
-              name="goodsDescription"
+              name="goodsType" // Changed from goodsDescription
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-secondary" /> Goods Description</FormLabel>
+                  <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-secondary" /> Type of Goods</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Electronics shipment, textiles" {...field} />
+                    <Input placeholder="e.g., Electronics, Textiles, Perishables" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                    control={form.control}
+                    name="loadWeightKg"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="flex items-center"><Truck className="mr-2 h-4 w-4 text-secondary" /> Load Weight (kg)</FormLabel>
+                        <FormControl>
+                        <Input type="number" placeholder="e.g., 1000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="vehicleType"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel className="flex items-center"><Car className="mr-2 h-4 w-4 text-secondary" /> Vehicle Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select vehicle type" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {VEHICLE_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                {type}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <FormField
-                control={form.control}
-                name="loadWeightKg"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center"><Truck className="mr-2 h-4 w-4 text-secondary" /> Load Weight (kg)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 1000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                   control={form.control}
-                  name="pickupDate"
+                  name="preferredDate" // Changed from pickupDate
                   render={({ field }) => (
                     <FormItem className="flex flex-col pt-2">
-                      <FormLabel className="flex items-center mb-1"><Calendar className="mr-2 h-4 w-4 text-secondary" /> Pickup Date</FormLabel>
+                      <FormLabel className="flex items-center mb-1"><Calendar className="mr-2 h-4 w-4 text-secondary" /> Preferred Pickup Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -344,8 +400,8 @@ export function BookingForm() {
                   control={form.control}
                   name="pickupTime"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4 text-secondary" /> Pickup Time (HH:MM)</FormLabel>
+                    <FormItem className="pt-2">
+                      <FormLabel className="flex items-center"><Clock className="mr-2 h-4 w-4 text-secondary" /> Preferred Pickup Time (HH:MM)</FormLabel>
                       <FormControl>
                         <Input type="time" {...field} />
                       </FormControl>
@@ -355,6 +411,7 @@ export function BookingForm() {
                 />
             </div>
 
+             {/* Hidden fields for coordinates, could be populated by a map/geocoding service in future */}
              <FormField control={form.control} name="pickupLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="pickupLongitude" render={({ field }) => <Input type="hidden" {...field} />} />
              <FormField control={form.control} name="destinationLatitude" render={({ field }) => <Input type="hidden" {...field} />} />
@@ -367,16 +424,17 @@ export function BookingForm() {
                     <AlertDescription>{submissionError}</AlertDescription>
                 </Alert>
             )}
-
+            
+            {/* Button text needs to reflect booking action, not just price estimation */}
             <Button type="submit" className="w-full bg-accent hover:bg-primary transition-colors duration-200" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Estimating Price...
+                  Processing...
                 </>
               ) : (
                 <>
-                 <IndianRupee className="mr-2 h-4 w-4" /> Get Price Estimate (INR)
+                 <Truck className="mr-2 h-4 w-4" /> Get Estimate & Book Transport
                 </>
               )}
             </Button>
@@ -410,16 +468,16 @@ export function BookingForm() {
            {/* Placeholder for Payment and Invoice actions */}
             <div className="w-full flex flex-col sm:flex-row gap-2 mt-4">
                 <Button variant="default" className="flex-1" disabled> {/* TODO: Enable when payment integrated */}
-                    <CreditCard className="mr-2 h-4 w-4" /> Proceed to Payment (Coming Soon)
+                    <CreditCard className="mr-2 h-4 w-4" /> Proceed to Confirm Booking (Coming Soon)
                 </Button>
                 <Button variant="outline" className="flex-1" disabled> {/* TODO: Enable when invoice integrated */}
-                    <FileText className="mr-2 h-4 w-4" /> Download Invoice (Coming Soon)
+                    <FileText className="mr-2 h-4 w-4" /> Download Proforma Invoice (Coming Soon)
                 </Button>
             </div>
             <p className="text-xs text-muted-foreground italic text-center w-full pt-2">
               {priceResult.breakdown.toLowerCase().includes('fallback rate')
-                ? "Note: AI estimation was unavailable. This price is based on a standard fallback rate."
-                : "Note: This is an AI-generated estimate for transport within India based on provided details and standard assumptions. Real-world factors may influence the final price."}
+                ? "Note: AI estimation was unavailable. This price is based on a standard fallback rate. Booking will be reviewed by admin."
+                : "Note: This is an AI-generated estimate. Final booking and price will be confirmed by admin."}
             </p>
         </CardFooter>
       )}
@@ -429,7 +487,7 @@ export function BookingForm() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Estimate Unavailable</AlertTitle>
               <AlertDescription>
-                {priceResult.breakdown.includes("Error:") ? priceResult.breakdown : "Price estimate is currently unavailable for the provided details. Please try modifying the input or try again later."}
+                {priceResult.breakdown.includes("Error:") ? priceResult.breakdown : "Price estimate is currently unavailable for the provided details. Please try modifying the input or try again later. You can still attempt to submit the booking for manual review."}
               </AlertDescription>
             </Alert>
          </CardFooter>
