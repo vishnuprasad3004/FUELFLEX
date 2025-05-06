@@ -1,47 +1,59 @@
-# FuelFlex Transport Platform
+# FuelFlex Transport Platform - Flutter Edition
 
-This is a Next.js application for a smart goods transport and fuel credit platform, built with Firebase and Genkit.
+This project is a smart goods transport and fuel credit platform. The frontend is built with Flutter, and the backend services, including AI-powered features, are provided by a Next.js application using Genkit and Firebase.
 
-To get started, take a look at `src/app/page.tsx`.
+## Core Backend Features (Next.js & Genkit)
 
-## Core Features
+*   **AI-Powered Pricing API:** A REST API endpoint (`/api/calculate-price`) that dynamically estimates transport costs using Genkit and Google's Generative AI models. It considers factors like distance (via Google Distance Matrix API), load weight, vehicle type, and mock real-time fuel prices.
+*   **Firebase Integration:**
+    *   **Authentication:** Manages user signup and login.
+    *   **Firestore:** Stores user profiles, goods listings, and booking information.
+    *   **Cloud Storage:** Used for storing files like PDF invoices (planned) or user-uploaded images.
+*   **Service Layer:** Includes modules for fetching mock fuel prices and calculating distances using the Google Distance Matrix API.
 
-*   **AI-Powered Pricing:** Dynamically estimates transport costs using Genkit and Google's Generative AI models, considering factors like distance, load weight, and real-time fuel prices.
-*   **Booking System:** Allows clients to book transport services by providing pickup/destination details, goods description, and preferred pickup time.
-*   **Owner Dashboard:** Enables transport owners to view a summary of their vehicle fleet, including mock location, fuel levels, and FASTag balances.
-*   **User Authentication Pages:** Basic login and sign-up page structures.
+## Flutter Frontend Features (Conceptual)
 
-## Advanced Features (In Development / Planned)
+The Flutter application will provide the user interface for:
 
-*   **Smart Route & Distance Calculation:** Utilizes the **Google Distance Matrix API** for accurate road distances and estimated travel times, improving the reliability of price estimations. (Requires `GOOGLE_MAPS_API_KEY`)
-*   **Live Vehicle Tracking (Placeholder):** The Owner Dashboard includes a placeholder for future integration of live vehicle tracking using Google Maps and real-time driver location updates.
-*   **Admin Dashboard (Placeholder):** A dedicated dashboard for administrators (`/admin/dashboard`) to monitor trips, repayments, and overall platform activity (currently a placeholder).
-*   **Payment Gateway Integration (Placeholder):** The booking form includes a placeholder to proceed to payment, with future plans to integrate UPI and/or Stripe for booking fees and fuel credit repayments.
-*   **Automated Reminders (Planned):** Future integration of Firebase Cloud Functions for automated due-date reminders for fuel credit.
-*   **PDF Invoices (Planned):** Future capability to generate and download PDF invoices, potentially stored in **Firebase Storage**.
-*   **Push Notifications (Planned):** Firebase Cloud Messaging (FCM) will be used to send real-time updates to users about bookings, repayments, and trip status.
-*   **Role-Based Access Control (Planned):** Implementation of RBAC to ensure clients, drivers, and admins can only access features relevant to their roles. This will involve enhancing Firestore security rules.
-*   **Multilingual Support (Planned):** The platform aims to support multiple languages using Next.js internationalization libraries (e.g., `next-intl`) or similar solutions.
+*   **User Authentication:** Login and sign-up screens interacting with Firebase Authentication.
+*   **Goods Marketplace:**
+    *   Browsing goods listed by sellers.
+    *   Allowing sellers to list their goods for sale.
+*   **Transport Booking:**
+    *   A form for users to input pickup/destination details, goods description, preferred pickup time, etc.
+    *   Interaction with the `/api/calculate-price` backend endpoint to get price estimates.
+    *   Submitting booking requests to be stored in Firestore.
+*   **Owner Dashboard:** (For transport owners) Viewing a summary of their vehicle fleet, including mock location, fuel levels, and FASTag balances.
+*   **Admin Dashboard:** (For platform administrators) Monitoring trips, repayments, user management, and overall platform activity.
+*   **Payment Gateway Integration (Placeholder):** UI elements for future integration with UPI and/or Stripe for booking fees and fuel credit repayments.
+*   **Live Vehicle Tracking (Placeholder):** UI elements for future integration of live vehicle tracking.
+*   **PDF Invoices (Planned):** Functionality to request/view PDF invoices.
+*   **Push Notifications (Planned):** Handling real-time updates.
+*   **Multilingual Support (Planned).**
 
 ## Technology Stack
 
-*   **Frontend:** Next.js (React Framework), TypeScript, Tailwind CSS, ShadCN UI Components
-*   **Backend/AI:** Genkit, Google Generative AI (Gemini models)
-*   **Services:** Google Distance Matrix API
-*   **Database/Auth/Storage (Planned & Partially Integrated):** Firebase (Firestore, Authentication, **Cloud Storage**, Cloud Functions, FCM)
-*   **Deployment (Typical):** Vercel, Firebase Hosting
+*   **Frontend:** Flutter
+*   **Backend/AI:** Next.js (as an API layer), Genkit, Google Generative AI (Gemini models)
+*   **Services (used by Backend):** Google Distance Matrix API
+*   **Database/Auth/Storage:** Firebase (Firestore, Authentication, Cloud Storage, Cloud Functions, FCM)
+*   **Deployment:**
+    *   Flutter App: App Store, Google Play Store
+    *   Next.js Backend: Vercel, Firebase Hosting, or other Node.js hosting.
 
-## Getting Started
+## Getting Started (Backend - Next.js/Genkit)
 
-### Prerequisites
+Follow the instructions below to set up and run the Next.js backend. For Flutter development, refer to standard Flutter setup and project creation guides.
+
+### Prerequisites (Backend)
 
 *   Node.js (v18 or later recommended)
 *   npm or yarn
 *   A Firebase project (with Firestore, Authentication, and Cloud Storage enabled)
 
-### Environment Variables
+### Environment Variables (Backend)
 
-Create a `.env` file in the project root and add the following variables. **Replace `YOUR_..._HERE` with your actual keys and project details.**
+Create a `.env` file in the Next.js project root (i.e., the root of this repository) and add the following variables. **Replace `YOUR_..._HERE` with your actual keys and project details.**
 
 **VERY IMPORTANT: API Key Errors (e.g., `auth/api-key-not-valid`)**
 
@@ -49,29 +61,19 @@ If you encounter errors like `auth/api-key-not-valid`, `GOOGLE_GENAI_API_KEY` is
 
 **Troubleshooting Steps for API Key Errors:**
 
-1.  **`.env` File Location:** Ensure the file is named exactly `.env` (not `.env.local` for these specific keys unless you intend for that behavior) and is located in the **root directory** of your project (the same level as `package.json`).
-2.  **Variable Names:** Double-check that the variable names in your `.env` file exactly match the ones listed below (e.g., `NEXT_PUBLIC_FIREBASE_API_KEY`, `GOOGLE_GENAI_API_KEY`, `GOOGLE_MAPS_API_KEY`). Typos are common.
-3.  **API Key Values:**
-    *   **Copy-Paste Carefully:** Ensure you have copied the entire API key correctly from your Firebase project settings or Google Cloud Console.
-    *   **No Extra Characters:** There should be no extra spaces, quotes (unless the key itself contains them, which is rare), or other characters around the key. For example:
-        *   Correct: `NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyC...`
-        *   Incorrect: `NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSyC..."` (unless the key itself has quotes)
-        *   Incorrect: `NEXT_PUBLIC_FIREBASE_API_KEY= AIzaSyC...` (extra space)
-4.  **Correct Firebase Project:**
-    *   Verify that the Firebase project details (API Key, Auth Domain, Project ID, etc.) are from the **correct Firebase project** you intend to use.
-    *   In your Firebase project settings (Project settings > General > Your apps > Web app > SDK setup and configuration), ensure your web app is registered and the configuration details match what you have in `.env`.
+1.  **`.env` File Location:** Ensure the file is named exactly `.env` and is located in the **root directory** of your Next.js project.
+2.  **Variable Names:** Double-check that the variable names in your `.env` file exactly match the ones listed below.
+3.  **API Key Values:** Copy-paste carefully. No extra spaces or quotes (unless the key itself contains them).
+4.  **Correct Firebase Project:** Verify Firebase project details match your intended project.
 5.  **Enabled APIs/Services:**
-    *   **Firebase:** Ensure Firebase Authentication, Firestore (in Native mode or Datastore mode as per your setup), and Cloud Storage are enabled in your Firebase project.
-    *   **Google AI (Genkit):** Make sure the Generative Language API (or Vertex AI API if using that backend) is enabled in your Google Cloud project associated with the `GOOGLE_GENAI_API_KEY`.
-    *   **Google Maps:** Ensure "Distance Matrix API" and "Maps JavaScript API" (if you plan to use map displays) are enabled for the `GOOGLE_MAPS_API_KEY` in the Google Cloud Console.
-6.  **API Key Restrictions (Google Cloud):** If you've set up API key restrictions in Google Cloud Console, ensure they allow your development environment (e.g., `http://localhost:*` for HTTP referrers if testing locally) and the necessary APIs (Distance Matrix, Generative Language, etc.). For development, you might temporarily remove restrictions to isolate the problem.
+    *   **Firebase:** Ensure Firebase Authentication, Firestore, and Cloud Storage are enabled.
+    *   **Google AI (Genkit):** Ensure the Generative Language API (or Vertex AI) is enabled.
+    *   **Google Maps:** Ensure "Distance Matrix API" is enabled for the `GOOGLE_MAPS_API_KEY`.
+6.  **API Key Restrictions (Google Cloud):** Check restrictions. For development, you might temporarily remove them.
 7.  **Apply Changes by Restarting Servers:**
-    *   Correcting an invalid API key involves manually editing your `.env` file. There isn't a single CLI command to *automatically fix* the key itself.
-    *   After you have manually corrected the API key (or made any other changes) in your `.env` file, you **MUST** restart your development servers. This is crucial for the new environment variables to be loaded and for the changes to take effect.
-    *   For this Next.js application, you need to:
-        *   Restart your Next.js development server: `npm run dev` (or `yarn dev`)
-        *   Restart your Genkit development server: `npm run genkit:watch` (or `yarn genkit:watch`)
-    *   This process is similar to how other frameworks, like Flutter (which might use a command like `flutter clean && flutter pub get && flutter run`), require a rebuild or restart to apply configuration changes.
+    *   After correcting the API key in your `.env` file, **MUST** restart your development servers:
+        *   Next.js development server: `npm run dev` (or `yarn dev`)
+        *   Genkit development server: `npm run genkit:watch` (or `yarn genkit:watch`)
 
 ```env
 # Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
@@ -80,14 +82,13 @@ If you encounter errors like `auth/api-key-not-valid`, `GOOGLE_GENAI_API_KEY` is
 GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_GENAI_API_KEY_HERE
 
 # Get your Google Maps API Key from Google Cloud Console: https://console.cloud.google.com/google/maps-apis/credentials
-# Ensure "Distance Matrix API" and "Maps JavaScript API" (for live tracking) are enabled for this key.
+# Ensure "Distance Matrix API" is enabled for this key.
 GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 
 # Firebase configuration
 # Get these from your Firebase project settings:
 # Project settings > General > Your apps > Web app > SDK setup and configuration
 # CRITICAL: Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your project.
-# This is the most common cause of 'auth/api-key-not-valid' errors.
 NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
@@ -97,14 +98,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
 # NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID # Optional, for Analytics
 ```
 
-**Replace `YOUR_..._HERE` with your actual API keys and Firebase project details.** If you're still facing issues after checking all the above, double-check the Firebase console for any project-level alerts or misconfigurations.
-
-### Installation
+### Installation (Backend)
 
 1.  Clone the repository:
     ```bash
     git clone <repository-url>
-    cd <repository-name>
+    cd <repository-name> # This is your Next.js project directory
     ```
 2.  Install dependencies:
     ```bash
@@ -113,40 +112,38 @@ NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
     yarn install
     ```
 
-### Running the Development Server
+### Running the Backend Development Servers
 
 1.  **Ensure your `.env` file is correctly set up with valid API keys.**
 2.  **Start the Genkit development server (for AI flows):**
-    Open a terminal and run:
+    Open a terminal in the Next.js project root and run:
     ```bash
     npm run genkit:watch
     # or
     yarn genkit:watch
     ```
-    This will typically start on `http://localhost:3400`. Check its console output for any Genkit-specific API key errors.
+    This will typically start on `http://localhost:3400`.
 
-3.  **Start the Next.js development server:**
-    Open another terminal and run:
+3.  **Start the Next.js development server (for API endpoints):**
+    Open another terminal in the Next.js project root and run:
     ```bash
     npm run dev
     # or
     yarn dev
     ```
-    This will typically start the Next.js app on `http://localhost:9002` (as per `package.json`). Check its console output for Firebase or other API key errors.
+    This will typically start the Next.js app on `http://localhost:9002`.
 
-Navigate to `http://localhost:9002` in your browser.
+Your Flutter application will then make HTTP requests to `http://localhost:9002/api/...` endpoints.
 
-## AI-Powered Pricing API
+## AI-Powered Pricing API (for Flutter Integration)
 
-This application includes an AI-powered pricing feature exposed via a REST API endpoint. You can call this endpoint from client applications like Flutter to get transport price estimates.
+The Next.js backend exposes an AI-powered pricing feature via a REST API endpoint. Your Flutter app will call this endpoint to get transport price estimates.
 
-**Endpoint:** `/api/calculate-price`
+**Endpoint:** `/api/calculate-price` (e.g., `http://localhost:9002/api/calculate-price`)
 
 **Method:** `POST`
 
-**Request Body:**
-
-The request body must be a JSON object matching the following structure:
+**Request Body (JSON):**
 
 ```json
 {
@@ -159,9 +156,7 @@ The request body must be a JSON object matching the following structure:
 }
 ```
 
-**Success Response (Status 200 OK):**
-
-Returns a JSON object with the estimated price and breakdown:
+**Success Response (Status 200 OK - JSON):**
 
 ```json
 {
@@ -172,7 +167,7 @@ Returns a JSON object with the estimated price and breakdown:
   "travelTimeHours": number // Calculated travel time in hours
 }
 ```
-*Note: If the AI or Distance Matrix API fails, the endpoint may return a price calculated using a fallback rate (e.g., `150 INR/km` adjusted for vehicle type) and the `breakdown` will indicate this.*
+*Note: If the AI or Distance Matrix API fails, the endpoint may return a price calculated using a fallback rate and the `breakdown` will indicate this.*
 
 **Error Responses:**
 
@@ -180,35 +175,37 @@ Returns a JSON object with the estimated price and breakdown:
     ```json
     {
       "error": "Invalid request body",
-      "details": [ ... validation errors ... ]
+      "details": { /* Zod validation error details */ }
     }
     ```
-*   **Status 500 Internal Server Error:** If there's an issue on the server side (e.g., AI model error, failure to fetch necessary data, invalid API key).
+*   **Status 500 Internal Server Error:** If there's an issue on the server side.
     ```json
     {
-      "error": "Price estimation failed", // Or "Internal Server Error"
-      "details": "...", // Specific error message from the server/flow
+      "error": "Price estimation failed",
+      "details": "...", // Specific error message
       "currency": "INR",
       "estimatedPrice": 0
     }
     ```
 
-**Example Flutter Usage (using `http` package):**
+**Example Flutter `http` Package Usage:**
 
 ```dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-Future<Map<String, dynamic>?> getPriceEstimate({
+Future<Map<String, dynamic>?> getPriceEstimateFromApi({
   required double pickupLat,
   required double pickupLng,
   required double destLat,
   required double destLng,
   required double weightKg,
-  required String vehicleType, // Add vehicleType
+  required String vehicleType,
 }) async {
-  // Replace with your actual deployed Next.js app URL or http://localhost:9002 for local dev
-  final url = Uri.parse('YOUR_NEXTJS_APP_URL/api/calculate-price');
+  // For local Next.js dev server: 'http://localhost:9002/api/calculate-price'
+  // For Android emulator accessing local dev server: 'http://10.0.2.2:9002/api/calculate-price'
+  // Replace with your deployed Next.js app URL in production.
+  final url = Uri.parse('http://10.0.2.2:9002/api/calculate-price'); // Example for Android Emu
 
   try {
     final response = await http.post(
@@ -220,56 +217,43 @@ Future<Map<String, dynamic>?> getPriceEstimate({
         'destinationLatitude': destLat,
         'destinationLongitude': destLng,
         'loadWeightKg': weightKg,
-        'vehicleType': vehicleType, // Include vehicleType
+        'vehicleType': vehicleType,
       }),
     );
-
-    print('API Response Status: ${response.statusCode}');
-    print('API Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
-      // Handle errors (4xx, 5xx)
       print('Error getting price estimate: ${response.statusCode}');
-      try {
-         // Try to parse error details if available
-         final errorBody = jsonDecode(response.body) as Map<String, dynamic>;
-         print('Error details: ${errorBody['details'] ?? errorBody['error'] ?? 'Unknown error'}');
-      } catch (e) {
-         print('Could not parse error response body.');
-      }
-      return null; // Indicate failure
+      print('Response body: ${response.body}');
+      // You might want to parse the error response body for more details
+      return null;
     }
   } catch (e) {
     print('Network or other error calling API: $e');
-    return null; // Indicate failure
+    return null;
   }
 }
 
-// --- How to call it ---
-// final result = await getPriceEstimate(
-//   pickupLat: 28.6139,
-//   pickupLng: 77.2090,
-//   destLat: 19.0760,
-//   destLng: 72.8777,
-//   weightKg: 1500,
-//   vehicleType: "Mini Truck (Tata Ace, Mahindra Jeeto, etc.)", // Provide a valid vehicle type
-// );
+// --- How to call it in Flutter ---
+// void main() async {
+//   final result = await getPriceEstimateFromApi(
+//     pickupLat: 28.6139, // Delhi
+//     pickupLng: 77.2090,
+//     destLat: 19.0760,   // Mumbai
+//     destLng: 72.8777,
+//     weightKg: 1500,
+//     vehicleType: "Mini Truck (Tata Ace, Mahindra Jeeto, etc.)",
+//   );
 //
-// if (result != null) {
-//   print('Estimated Price: ${result['estimatedPrice']} ${result['currency']}');
-//   print('Breakdown: ${result['breakdown']}');
-//   print('Distance: ${result['distanceKm']} km');
-//   print('Travel Time: ${result['travelTimeHours']} hours');
-// } else {
-//   print('Failed to get price estimate.');
+//   if (result != null) {
+//     print('Estimated Price: ${result['estimatedPrice']} ${result['currency']}');
+//     print('Breakdown: ${result['breakdown']}');
+//   } else {
+//     print('Failed to get price estimate.');
+//   }
 // }
-
 ```
-
-**Remember to replace `YOUR_NEXTJS_APP_URL` with the actual URL where your Next.js application is deployed (or `http://localhost:9002` if testing locally against your dev server).**
-Also, ensure the `vehicleType` string passed matches one of the expected types defined in `src/models/booking.ts`.
-
+Remember to handle API URLs correctly depending on whether you're running on an emulator, a physical device, or in production.
+Ensure the `vehicleType` string passed from Flutter matches one of the expected types defined in `src/models/booking.ts` in the Next.js backend.
 ```
-

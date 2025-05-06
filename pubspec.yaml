@@ -1,0 +1,81 @@
+name: fuelflex_flutter
+description: "A smart goods transport and fuel credit platform."
+
+publish_to: 'none' # Remove this line if you intend to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0' # Adjusted SDK constraint
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^3.3.0 # Check for latest version
+  firebase_auth: ^5.1.1 # Check for latest version
+  cloud_firestore: ^5.1.0 # Check for latest version
+  firebase_storage: ^12.1.0 # Check for latest version
+  # firebase_messaging: ^15.0.0 # For push notifications (optional)
+  # firebase_functions: ^5.0.0 # For calling Firebase Functions (optional)
+
+  # State Management
+  provider: ^6.0.5 # Check for latest version
+
+  # HTTP Requests
+  http: ^1.1.0 # Check for latest version
+
+  # Date Formatting
+  intl: ^0.19.0 # Check for latest version
+
+  # UI & Utility
+  cached_network_image: ^3.3.0 # For network images with caching & placeholders
+  google_fonts: ^6.1.0 # For custom fonts
+  # geolocator: ^12.0.0 # For getting current device location (optional)
+  geocoding: ^3.0.0 # For converting addresses to/from coordinates
+
+  # Icons (already part of Flutter SDK, but listed for clarity if using specific packages)
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0 # Check for latest version
+  # flutter_launcher_icons: ^0.13.1 # For generating app icons (optional)
+
+# flutter_icons:
+#   android: "launcher_icon"
+#   ios: true
+#   image_path: "assets/icon/app_icon.png" # Create this path and icon
+
+flutter:
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  # assets:
+  #   - assets/images/logo.png
+  #   - assets/images/truck_placeholder.png
+
+  # An image asset can refer to one or more resolution-specific "variants".
+  # See https://flutter.dev/assets-and-images/#resolution-aware.
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/custom-fonts/#from-packages
