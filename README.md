@@ -65,7 +65,13 @@ If you encounter errors like `auth/api-key-not-valid`, `GOOGLE_GENAI_API_KEY` is
     *   **Google AI (Genkit):** Make sure the Generative Language API (or Vertex AI API if using that backend) is enabled in your Google Cloud project associated with the `GOOGLE_GENAI_API_KEY`.
     *   **Google Maps:** Ensure "Distance Matrix API" and "Maps JavaScript API" (if you plan to use map displays) are enabled for the `GOOGLE_MAPS_API_KEY` in the Google Cloud Console.
 6.  **API Key Restrictions (Google Cloud):** If you've set up API key restrictions in Google Cloud Console, ensure they allow your development environment (e.g., `http://localhost:*` for HTTP referrers if testing locally) and the necessary APIs (Distance Matrix, Generative Language, etc.). For development, you might temporarily remove restrictions to isolate the problem.
-7.  **Restart Your Development Server:** After creating or making any changes to your `.env` file, you **MUST** restart your Next.js development server (`npm run dev` or `yarn dev`) and your Genkit server (`npm run genkit:watch`) for the changes to take effect.
+7.  **Apply Changes by Restarting Servers:**
+    *   Correcting an invalid API key involves manually editing your `.env` file. There isn't a single CLI command to *automatically fix* the key itself.
+    *   After you have manually corrected the API key (or made any other changes) in your `.env` file, you **MUST** restart your development servers. This is crucial for the new environment variables to be loaded and for the changes to take effect.
+    *   For this Next.js application, you need to:
+        *   Restart your Next.js development server: `npm run dev` (or `yarn dev`)
+        *   Restart your Genkit development server: `npm run genkit:watch` (or `yarn genkit:watch`)
+    *   This process is similar to how other frameworks, like Flutter (which might use a command like `flutter clean && flutter pub get && flutter run`), require a rebuild or restart to apply configuration changes.
 
 ```env
 # Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
@@ -264,3 +270,6 @@ Future<Map<String, dynamic>?> getPriceEstimate({
 
 **Remember to replace `YOUR_NEXTJS_APP_URL` with the actual URL where your Next.js application is deployed (or `http://localhost:9002` if testing locally against your dev server).**
 Also, ensure the `vehicleType` string passed matches one of the expected types defined in `src/models/booking.ts`.
+
+```
+
