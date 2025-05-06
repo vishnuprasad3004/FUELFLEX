@@ -5,7 +5,7 @@ import Link from 'next/link';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
-import { Home, LogIn, UserPlus, LayoutDashboard, ShieldCheck, PackagePlus } from 'lucide-react'; // Added PackagePlus for Book Transport
+import { Home, LogIn, UserPlus, LayoutDashboard, ShieldCheck, PackagePlus, ShoppingCart, Store } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -35,6 +35,16 @@ export default function RootLayout({
               <Link href="/" passHref>
                 <Button variant="ghost" className="text-sm font-medium">
                   <Home className="mr-1 h-4 w-4" /> Home
+                </Button>
+              </Link>
+              <Link href="/browse-goods" passHref>
+                <Button variant="ghost" className="text-sm font-medium">
+                  <ShoppingCart className="mr-1 h-4 w-4" /> Browse Goods
+                </Button>
+              </Link>
+              <Link href="/sell-goods" passHref>
+                <Button variant="ghost" className="text-sm font-medium">
+                  <Store className="mr-1 h-4 w-4" /> Sell Goods
                 </Button>
               </Link>
               <Link href="/book-transport" passHref>

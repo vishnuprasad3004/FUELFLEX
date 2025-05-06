@@ -1,20 +1,62 @@
 
+"use client"; // Ensure this is a client component if using hooks like useSearchParams
+
 import { BookingForm } from "@/components/booking-form";
 import { Separator } from "@/components/ui/separator";
-import { FileText, ShieldCheck, Truck } from "lucide-react";
+import { FileText, ShieldCheck, Truck, ShoppingCart } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from 'next/navigation'; // For reading query params
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 export default function BookTransportPage() {
+  const searchParams = useSearchParams();
+  const goodsId = searchParams.get('goodsId');
+  const [relatedGoodsInfo, setRelatedGoodsInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (goodsId) {
+      // In a real app, you would fetch details for this goodsId
+      // For demo, just display a message.
+      // e.g., fetch(`/api/goods/${goodsId}`).then(res => res.json()).then(data => setRelatedGoodsInfo(data.productName));
+      setRelatedGoodsInfo(`You are booking transport for a specific item (ID: ${goodsId}). Details will be pre-filled or considered.`);
+      
+      // Potentially pass goodsId to BookingForm or use it to pre-fill form fields
+      // This would require BookingForm to accept goodsId as a prop and fetch its details
+      console.log("Booking transport for goods ID:", goodsId);
+    }
+  }, [goodsId]);
+
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-start p-4 md:p-8 bg-gradient-to-br from-background to-secondary/10">
       <div className="w-full max-w-4xl space-y-8">
-        {/* Optional: Add a header or some introductory text specific to this page */}
         <div className="text-center mb-8">
             <Truck className="mx-auto h-12 w-12 text-primary mb-3" />
-            <h1 className="text-3xl font-bold text-primary">Plan Your Shipment</h1>
-            <p className="text-muted-foreground">Fill in the details below to get an instant AI-powered price estimate and request your transport booking across India.</p>
+            <h1 className="text-3xl font-bold text-primary">
+              {goodsId ? "Book Transport for Your Selected Item" : "Plan Your Shipment"}
+            </h1>
+            <p className="text-muted-foreground">
+              {goodsId 
+                ? "Confirm details below to arrange transport for the item you selected from our marketplace."
+                : "Fill in the details below to get an instant AI-powered price estimate and request your transport booking across India."
+              }
+            </p>
         </div>
+
+        {relatedGoodsInfo && (
+          <Alert className="bg-accent/10 border-accent/30 text-accent-foreground">
+            <ShoppingCart className="h-5 w-5 text-accent" />
+            <AlertTitle className="text-accent">Marketplace Item Selected</AlertTitle>
+            <AlertDescription>
+              {relatedGoodsInfo} If this is not correct, please <Link href="/browse-goods" className="underline hover:text-primary">browse goods</Link> again.
+            </AlertDescription>
+          </Alert>
+        )}
         
-        <BookingForm />
+        {/* Pass goodsId to BookingForm if it's designed to handle it */}
+        {/* <BookingForm goodsId={goodsId} /> */}
+        <BookingForm /> 
 
         <Separator className="my-12" />
 

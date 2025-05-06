@@ -1,86 +1,35 @@
 
 import type { Timestamp } from 'firebase/firestore';
+import type { VehicleType } from './goods'; // Assuming VehicleType might be shared or defined elsewhere if not specific to goods
 
 export enum BookingStatus {
-  PENDING = 'pending', // Initial state, awaiting admin confirmation or driver assignment
-  CONFIRMED = 'confirmed', // Admin has confirmed, awaiting driver assignment or pickup
-  ASSIGNED = 'assigned', // Driver assigned
+  PENDING = 'pending', // Buyer has requested booking, awaiting seller/admin confirmation
+  CONFIRMED = 'confirmed', // Seller/Admin confirmed, awaiting transport assignment
+  AWAITING_PICKUP = 'awaiting_pickup', // Transport assigned, ready for pickup
   IN_TRANSIT = 'in_transit', // Goods are currently being transported
-  COMPLETED = 'completed', // Transport finished, awaiting payment or finalization
   DELIVERED = 'delivered', // Goods delivered to destination
-  CANCELLED = 'cancelled', // Booking cancelled by client or admin
+  COMPLETED = 'completed', // Transport finished, payment (if any post-delivery) finalized
+  CANCELLED_BY_BUYER = 'cancelled_by_buyer',
+  CANCELLED_BY_SELLER = 'cancelled_by_seller',
+  CANCELLED_BY_ADMIN = 'cancelled_by_admin',
   ON_HOLD = 'on_hold', // Booking temporarily paused
-  PAYMENT_DUE = 'payment_due', // Transport completed, payment pending
+  PAYMENT_DUE = 'payment_due', // Transport completed, payment for transport pending
+  FAILED = 'failed', // Booking could not be processed or transport failed
 }
 
 export enum RepaymentStatus {
-  PENDING = 'pending', // Repayment for fuel credit is pending
-  PAID = 'paid', // Repayment made
-  OVERDUE = 'overdue', // Repayment is past its due date
-  NOT_APPLICABLE = 'not_applicable', // No fuel credit involved or not yet applicable
+  PENDING = 'pending',
+  PAID = 'paid',
+  OVERDUE = 'overdue',
+  NOT_APPLICABLE = 'not_applicable',
   PARTIALLY_PAID = 'partially_paid',
 }
 
 export interface ActionLogEntry {
-  timestamp: Timestamp | Date; // Firestore Timestamp or Date object
-  actorId: string; // User ID of the person who performed the action (e.g., admin, client, system)
-  actionDescription: string; // Description of the action (e.g., "Booking created", "Status changed to in_transit")
-  details?: Record<string, any>; // Optional additional details about the action
-}
-
-export interface Booking {
-  bookingId: string; // Firestore document ID
-  userId: string; // ID of the user (client) who created the booking
-  clientId: string; // ID of the client who made the booking (can be same as userId or represent a company)
-  clientName?: string; // Optional: denormalized client name for easier display
-  
-  from: {
-    address: string;
-    latitude: number;
-    longitude: number;
-  };
-  to: {
-    address: string;
-    latitude: number;
-    longitude: number;
-  };
-  
-  goodsType: string; // Description of the goods (e.g., "Electronics", "Furniture")
-  weightKg: number; // Weight of the goods in kilograms
-  vehicleType: VehicleType; // Type of vehicle required (e.g., "Small Truck", "Van", "10-wheeler")
-  preferredDate: Timestamp | Date | null; // Optional preferred pickup date/time
-  
-  status: BookingStatus; // Current status of the booking
-  
-  driverId?: string | null; // ID of the assigned driver
-  driverName?: string; // Optional: denormalized driver name
-
-  estimatedCost?: number; // Estimated cost of transport from AI/manual quote, influenced by vehicle type, weight, distance
-  finalCost?: number; // Actual final cost after transport completion
-
-  // Fuel Credit related fields
-  fuelCreditRequested?: boolean;
-  fuelCost?: number | null; // Cost of fuel if applicable (especially for credit)
-  repayAmount?: number | null; // Amount to be repaid (fuelCost + interest, if any)
-  repayDueDate?: Timestamp | Date | null;
-  repayStatus: RepaymentStatus;
-
-  // Timestamps
-  createdAt: Timestamp | Date;
-  updatedAt: Timestamp | Date;
-  
-  actionLogs: ActionLogEntry[]; // History of changes and actions on the booking
-
-  // Additional optional fields
-  specialInstructions?: string;
-  estimatedDistanceKm?: number;
-  estimatedDurationHours?: number;
-  paymentDetails?: { // Placeholder for payment info
-    transactionId?: string;
-    method?: string;
-    status?: string; // e.g., 'paid', 'pending_confirmation'
-  };
-  invoiceId?: string; // Reference to a generated invoice document/ID
+  timestamp: Timestamp | Date;
+  actorId: string; // User ID (buyer, seller, admin, system)
+  actionDescription: string;
+  details?: Record<string, any>;
 }
 
 export const VEHICLE_TYPES = [
@@ -92,32 +41,91 @@ export const VEHICLE_TYPES = [
   "Container Truck (20ft, 40ft)",
   "Tanker",
   "Van / Tempo Traveller",
+  "2-Wheeler (for small parcels)",
   "Other",
 ] as const;
 
-export type VehicleType = typeof VEHICLE_TYPES[number];
+export type BookingVehicleType = typeof VEHICLE_TYPES[number];
 
-// Example of how a booking object might look:
+
+export interface Booking {
+  bookingId: string; // Firestore document ID
+  buyerId: string; // Firebase Auth ID of the buyer
+  goodsId: string; // Reference to the 'goods' document being transported
+  sellerId: string; // Firebase Auth ID of the seller (denormalized from goods for easier querying)
+
+  // Pickup location is sourced from the 'goods' document
+  // from: { 
+  //   address: string;
+  //   latitude: number;
+  //   longitude: number;
+  // };
+  
+  // Drop-off location specified by the buyer
+  dropoffLocation: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+  
+  // Goods details are primarily in the 'goods' document, but some might be snapshot here
+  // goodsType: string; // Likely sourced from goods.category or goods.productName
+  // weightKg: number; // Likely sourced from goods.weightKg * quantity_booked
+
+  vehicleType?: BookingVehicleType; // Buyer might select or it might be suggested
+  preferredPickupDate?: Timestamp | Date | null; // Buyer's preferred pickup date/time
+
+  status: BookingStatus;
+  
+  driverId?: string | null;
+  driverName?: string;
+
+  estimatedTransportCost?: number; // AI-calculated cost for the transport service
+  finalTransportCost?: number;
+
+  // Fuel Credit related fields (if applicable to the transport provider/driver)
+  fuelCreditRequested?: boolean;
+  fuelCost?: number | null;
+  repayAmount?: number | null;
+  repayDueDate?: Timestamp | Date | null;
+  repayStatus: RepaymentStatus;
+
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
+  
+  actionLogs: ActionLogEntry[];
+
+  specialInstructions?: string; // From buyer for the transport
+  paymentDetails?: {
+    transportFeeTransactionId?: string;
+    goodsPriceTransactionId?: string; // If platform handles goods payment
+    method?: string;
+    status?: string;
+  };
+  invoiceId?: string;
+}
+
+// Example of how a booking object might look in the new marketplace model:
 /*
-const exampleBooking: Booking = {
-  bookingId: 'firestoreDocId123',
-  userId: 'userFirebaseUid456',
-  clientId: 'clientCompanyId789', // Could be same as userId for individual clients
-  clientName: 'Rohan Industries',
-  from: { address: '123 MG Road, Bengaluru, Karnataka', latitude: 12.9716, longitude: 77.5946 },
-  to: { address: '456 Marine Drive, Mumbai, Maharashtra', latitude: 19.0760, longitude: 72.8777 },
-  goodsType: 'Electronics - LED TVs',
-  weightKg: 1200,
-  vehicleType: 'Light Commercial Vehicle (LCV) (Tata 407, Eicher Pro 2000, etc.)',
-  preferredDate: new Date('2024-09-15T10:00:00Z'),
+const exampleMarketplaceBooking: Booking = {
+  bookingId: 'firestoreBookingId456',
+  buyerId: 'buyerFirebaseUid123',
+  goodsId: 'firestoreDocIdGood123', // Links to the Good document
+  sellerId: 'sellerFirebaseUid789', // Denormalized from Good
+  dropoffLocation: {
+    address: '789 Buyer Street, Pune, Maharashtra',
+    latitude: 18.5204,
+    longitude: 73.8567,
+  },
+  vehicleType: 'Mini Truck (Tata Ace, Mahindra Jeeto, etc.)',
+  preferredPickupDate: new Date('2024-09-20T14:00:00Z'),
   status: BookingStatus.PENDING,
-  estimatedCost: 15500,
+  estimatedTransportCost: 850,
   repayStatus: RepaymentStatus.NOT_APPLICABLE,
   createdAt: new Date(),
   updatedAt: new Date(),
   actionLogs: [
-    { timestamp: new Date(), actorId: 'userFirebaseUid456', actionDescription: 'Booking created by client.' }
+    { timestamp: new Date(), actorId: 'buyerFirebaseUid123', actionDescription: 'Transport booking created for goodsId: firestoreDocIdGood123.' }
   ],
 };
 */
-
