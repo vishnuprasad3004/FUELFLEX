@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { collection, query, onSnapshot, orderBy, limit, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot, where } from 'firebase/firestore';
 import { firestore } from '@/firebase/firebase-config';
-import type { Booking, BookingStatus, RepaymentStatus } from '@/models/booking';
+import type { Booking } from '@/models/booking'; // RepaymentStatus is implicitly available
+import { BookingStatus, RepaymentStatus } from '@/models/booking'; // Import BookingStatus and RepaymentStatus
 import type { UserProfile } from '@/models/user'; // UserRole is implicitly available via UserRoleEnum
 import { UserRole as UserRoleEnum } from '@/models/user'; 
 import { format } from 'date-fns';
