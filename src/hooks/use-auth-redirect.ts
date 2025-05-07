@@ -45,10 +45,14 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
       if (!hasRequiredRole) {
         // Redirect to a generic "access denied" or home page if role doesn't match
         console.warn(`User does not have required role: ${options.requireRole}. Current role: ${userProfile?.role}`);
-        router.push(options.redirectTo || '/'); 
+        // Redirect to home page if not authorized for a specific role page.
+        // If redirectTo is specified, it might be a login page, which isn't appropriate here.
+        router.push('/'); 
       }
     }
   }, [currentUser, userProfile, loading, router, options, isAdmin, isTransportOwner, isBuyerSeller]);
 
   return { currentUser, userProfile, loading };
 }
+
+```

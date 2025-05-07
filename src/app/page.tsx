@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Truck, Package, IndianRupee, Clock, Search, ThumbsUp, ShieldCheck, Cpu, AppleIcon, TvIcon, ShirtIcon, SofaIcon, ShoppingBasket } from "lucide-react";
+import { ArrowRight, Truck, Package, IndianRupee, Clock, Search, ThumbsUp, ShieldCheck, Cpu, AppleIcon, TvIcon, ShirtIcon, SofaIcon, ShoppingBasket, PlusCircle } from "lucide-react";
 import Image from 'next/image';
 import { useAuthRedirect } from '@/hooks/use-auth-redirect'; // For potential redirection if user is logged in
 import { useAuth } from '@/components/auth/auth-provider';
@@ -23,8 +23,8 @@ const features = [
 ];
 
 export default function Home() {
-  useAuthRedirect(); // Basic redirect if already logged in, might need customization
-  const { currentUser, isBuyerSeller } = useAuth();
+  useAuthRedirect(); 
+  const { currentUser, isBuyerSeller, isTransportOwner } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -100,7 +100,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-center mb-12">Transport Anything, Anywhere</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((category) => (
-              <Link key={category.name} href={`/marketplace?category=${encodeURIComponent(category.name)}`} passHref>
+              <Link key={category.name} href={`/marketplace?category=${encodeURIComponent(category.name)}`} passHref legacyBehavior>
                 <Card className="group hover:shadow-xl transition-shadow cursor-pointer h-full flex flex-col">
                   <CardHeader className="items-center text-center">
                     <div className="p-3 bg-primary/10 rounded-full transition-transform group-hover:scale-110">
@@ -167,12 +167,12 @@ export default function Home() {
             Join thousands of users who trust FuelFlex for their goods transport and marketplace needs.
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
-             <Link href={currentUser ? (isBuyerSeller ? "/marketplace/book-transport" : "/create-account?role=buyer_seller") : "/create-account"} passHref legacyBehavior>
+             <Link href={currentUser ? (isBuyerSeller ? "/marketplace/list-good" : "/create-account?role=buyer_seller") : "/create-account?role=buyer_seller"} passHref legacyBehavior>
               <Button size="lg" className="shadow-lg">
-                Get Started as Buyer/Seller <ArrowRight className="ml-2 h-5 w-5" />
+                 <PlusCircle className="mr-2 h-5 w-5" /> List/Buy Goods
               </Button>
             </Link>
-            <Link href={currentUser ? (isBuyerSeller ? "/transport-owner/dashboard" : "/create-account?role=transport_owner") : "/create-account"} passHref legacyBehavior>
+            <Link href={currentUser ? (isTransportOwner ? "/transport-owner/dashboard" : "/create-account?role=transport_owner") : "/create-account?role=transport_owner"} passHref legacyBehavior>
               <Button size="lg" variant="outline" className="shadow-lg">
                 Join as Transport Owner <Truck className="ml-2 h-5 w-5" />
               </Button>
@@ -191,6 +191,7 @@ export default function Home() {
             <Link href="/terms" className="hover:text-gray-200">Terms of Service</Link>
             <Link href="/privacy" className="hover:text-gray-200">Privacy Policy</Link>
             <Link href="/contact" className="hover:text-gray-200">Contact Us</Link>
+            <Link href="/faq" className="hover:text-gray-200">FAQ</Link>
           </div>
         </div>
       </footer>
