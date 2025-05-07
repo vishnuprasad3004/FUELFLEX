@@ -54,7 +54,7 @@ export default function LoginForm() {
       } else if (err.code === 'auth/invalid-email') {
         errorMessage = "Invalid email format.";
       } else if (err.code === 'auth/api-key-not-valid') {
-         errorMessage = "Firebase API key is invalid. Please contact support.";
+         errorMessage = "Firebase API key is invalid. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your Firebase project. See README.md for setup instructions.";
       }
       setError(errorMessage);
       toast({

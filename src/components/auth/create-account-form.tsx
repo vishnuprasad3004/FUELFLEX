@@ -74,6 +74,8 @@ export default function CreateAccountForm() {
         errorMessage = "Password is too weak.";
       } else if (err.code === 'auth/invalid-email') {
         errorMessage = "Invalid email format.";
+      } else if (err.code === 'auth/api-key-not-valid') {
+        errorMessage = "Firebase API key is invalid. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your Firebase project. See README.md for setup instructions.";
       }
       setError(errorMessage);
       toast({
