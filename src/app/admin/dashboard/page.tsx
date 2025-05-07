@@ -2,31 +2,29 @@
 'use client'; 
 
 import React, { useState, useEffect, useMemo } from 'react';
-// import { useAuthRedirect } from '@/hooks/use-auth-redirect'; // Temporarily commented out for bypass
+import { useAuthRedirect } from '@/hooks/use-auth-redirect'; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { collection, query, getDocs, onSnapshot, orderBy, limit, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot, where } from 'firebase/firestore';
 import { firestore } from '@/firebase/firebase-config';
 import type { Booking, BookingStatus, RepaymentStatus } from '@/models/booking';
-import type { UserProfile, UserRole } from '@/models/user'; // Import UserProfile and UserRole
-import { UserRole as UserRoleEnum } from '@/models/user'; // Import UserRole enum for filter
+import type { UserProfile } from '@/models/user'; // UserRole is implicitly available via UserRoleEnum
+import { UserRole as UserRoleEnum } from '@/models/user'; 
 import { format } from 'date-fns';
-import { ArrowUpDown, Download, FilterIcon, Eye, Edit3, Trash2, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud } from 'lucide-react';
+import { ArrowUpDown, FilterIcon, Eye, Edit3, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud, PlusCircle, Loader2 } from 'lucide-react'; // Added PlusCircle, Loader2
 import { Separator } from '@/components/ui/separator'; 
 import { useToast } from "@/components/ui/use-toast";
+import { uploadFile as uploadFileToStorage, getFileUrl as getFileUrlFromStorage, listFilesAndFolders as listItemsFromStorage } from '@/services/storage-service';
 
-// --- StorageDemoComponent (uses storage-service which is now mocked) ---
-import { uploadFile as uploadFileToStorage, getFileUrl as getFileUrlFromStorage, deleteFile as deleteFileFromStorage, listFilesAndFolders as listItemsFromStorage } from '@/services/storage-service';
-// --- End of StorageDemoComponent ---
 
 const ITEMS_PER_PAGE = 10;
 
 export default function AdminDashboardPage() {
-  // useAuthRedirect({ requireAuth: true, requireRole: 'admin' }); // Temporarily commented out for bypass
+  useAuthRedirect({ requireAuth: true, requireRole: UserRoleEnum.ADMIN }); 
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
@@ -47,18 +45,20 @@ export default function AdminDashboardPage() {
   const [bookingCurrentPage, setBookingCurrentPage] = useState(1);
   const [bookingLastVisible, setBookingLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [bookingFirstVisible, setBookingFirstVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [bookingHasMore, setBookingHasMore] = useState(true);
   
   // User Management States
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [userEmailFilter, setUserEmailFilter] = useState('');
-  const [userRoleFilter, setUserRoleFilter] = useState<UserRole | 'all'>('all');
+  const [userRoleFilter, setUserRoleFilter] = useState<UserRoleEnum | 'all'>('all');
   const [userSortColumn, setUserSortColumn] = useState<keyof UserProfile | 'createdAt'>('createdAt');
   const [userSortDirection, setUserSortDirection] = useState<'asc' | 'desc'>('desc');
   const [userCurrentPage, setUserCurrentPage] = useState(1);
   const [userLastVisible, setUserLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [userFirstVisible, setUserFirstVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [userHasMore, setUserHasMore] = useState(true);
 
 
   // Storage Demo states (now uses mock storage service)
@@ -71,8 +71,30 @@ export default function AdminDashboardPage() {
 
   const fetchBookings = async (direction: 'next' | 'prev' | 'first' = 'first') => {
     setLoadingBookings(true);
+    if (!firestore) {
+      toast({ title: "Firestore Error", description: "Database service is not available. Check Firebase connection.", variant: "destructive" });
+      setLoadingBookings(false);
+      setBookingHasMore(false);
+      return () => {}; // Return a no-op function for unsubscribe
+    }
     try {
-      let q = query(collection(firestore, 'bookings'), orderBy(bookingSortColumn, bookingSortDirection));
+      let q = query(collection(firestore, 'bookings'));
+
+       // Add filters - Firestore requires specific indexing for multiple inequality/orderBy filters
+      if (bookingStatusFilter !== 'all') {
+        q = query(q, where('status', '==', bookingStatusFilter));
+      }
+      if (repaymentStatusFilter !== 'all') {
+        q = query(q, where('repayStatus', '==', repaymentStatusFilter));
+      }
+      // Note: Complex filtering (like combining status with ID search) might need client-side filtering or more specific backend logic.
+      // For now, ID and driverId filters are applied client-side.
+
+      // Apply sorting. If filtering, ensure the first orderBy matches a filter field if needed by Firestore.
+      // For simplicity, we assume 'createdAt' or 'estimatedTransportCost' can be sorted after 'status' or 'repayStatus' if those are filtered.
+      // This may require composite indexes in Firestore.
+      q = query(q, orderBy(bookingSortColumn, bookingSortDirection));
+
 
       if (direction === 'next' && bookingLastVisible) {
         q = query(q, startAfter(bookingLastVisible), limit(ITEMS_PER_PAGE));
@@ -83,37 +105,60 @@ export default function AdminDashboardPage() {
       }
       
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const fetchedBookings: Booking[] = [];
+        const fetchedBookingsData: Booking[] = [];
         querySnapshot.forEach((doc) => {
-          fetchedBookings.push({ bookingId: doc.id, ...doc.data() } as Booking);
+          fetchedBookingsData.push({ bookingId: doc.id, ...doc.data() } as Booking);
         });
         
-        setBookings(fetchedBookings);
+        setBookings(fetchedBookingsData);
+        setBookingHasMore(fetchedBookingsData.length === ITEMS_PER_PAGE);
+
         if (querySnapshot.docs.length > 0) {
             setBookingLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
             setBookingFirstVisible(querySnapshot.docs[0]);
+        } else {
+            if (direction === 'first') { // Initial load and no data
+                setBookingLastVisible(null);
+                setBookingFirstVisible(null);
+            }
+            // If not first load and no docs, setBookingHasMore correctly handles button state.
         }
         setLoadingBookings(false);
       }, (error) => {
         console.error("Error fetching bookings: ", error);
         toast({ title: "Error", description: "Failed to fetch bookings.", variant: "destructive" });
         setLoadingBookings(false);
+        setBookingHasMore(false);
       });
       return unsubscribe;
     } catch (error) {
       console.error("Error constructing bookings query: ", error);
-      toast({ title: "Error", description: "Failed to initialize booking fetch.", variant: "destructive" });
+      toast({ title: "Query Error", description: "Failed to initialize booking fetch.", variant: "destructive" });
       setLoadingBookings(false);
+      setBookingHasMore(false);
+      return () => {};
     }
   };
 
   const fetchUsers = async (direction: 'next' | 'prev' | 'first' = 'first') => {
     setLoadingUsers(true);
+     if (!firestore) {
+      toast({ title: "Firestore Error", description: "Database service is not available. Check Firebase connection.", variant: "destructive" });
+      setLoadingUsers(false);
+      setUserHasMore(false);
+      return () => {};
+    }
     try {
-      let q = query(collection(firestore, 'users'), orderBy(userSortColumn, userSortDirection));
+      let q = query(collection(firestore, 'users')); 
 
       if (userRoleFilter !== 'all') {
         q = query(q, where('role', '==', userRoleFilter));
+      }
+      
+      if (userRoleFilter !== 'all' && userSortColumn !== 'role') {
+          q = query(q, orderBy('role'), orderBy(userSortColumn, userSortDirection));
+      } else {
+          q = query(q, orderBy(userSortColumn, userSortDirection));
       }
       
       if (direction === 'next' && userLastVisible) {
@@ -125,111 +170,121 @@ export default function AdminDashboardPage() {
       }
       
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const fetchedUsers: UserProfile[] = [];
+        const fetchedUsersData: UserProfile[] = [];
         querySnapshot.forEach((doc) => {
-          fetchedUsers.push({ uid: doc.id, ...doc.data() } as UserProfile);
+          fetchedUsersData.push({ uid: doc.id, ...doc.data() } as UserProfile);
         });
         
-        setUsers(fetchedUsers);
+        setUsers(fetchedUsersData);
+        setUserHasMore(fetchedUsersData.length === ITEMS_PER_PAGE);
+
         if (querySnapshot.docs.length > 0) {
             setUserLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
             setUserFirstVisible(querySnapshot.docs[0]);
         } else {
-            setUserLastVisible(null); 
-            setUserFirstVisible(null);
+            if (direction === 'first') {
+                setUserLastVisible(null); 
+                setUserFirstVisible(null);
+            }
         }
         setLoadingUsers(false);
       }, (error) => {
         console.error("Error fetching users: ", error);
         toast({ title: "Error", description: "Failed to fetch users.", variant: "destructive" });
         setLoadingUsers(false);
+        setUserHasMore(false);
       });
       return unsubscribe;
 
     } catch (error) {
       console.error("Error constructing users query: ", error);
-      toast({ title: "Error", description: "Failed to initialize user fetch.", variant: "destructive" });
+      toast({ title: "Query Error", description: "Failed to initialize user fetch.", variant: "destructive" });
       setLoadingUsers(false);
+      setUserHasMore(false);
+      return () => {};
     }
   };
 
   useEffect(() => {
-    const unsubscribeBookingsPromise = fetchBookings();
-    const unsubscribeUsersPromise = fetchUsers();
+    const unsubscribeBookingsPromise = fetchBookings('first');
+    const unsubscribeUsersPromise = fetchUsers('first');
     return () => {
-      unsubscribeBookingsPromise?.then(unsub => typeof unsub === 'function' && unsub());
-      unsubscribeUsersPromise?.then(unsub => typeof unsub === 'function' && unsub());
+      unsubscribeBookingsPromise.then(unsub => typeof unsub === 'function' && unsub());
+      unsubscribeUsersPromise.then(unsub => typeof unsub === 'function' && unsub());
     };
-  }, [bookingSortColumn, bookingSortDirection, userSortColumn, userSortDirection, userRoleFilter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingSortColumn, bookingSortDirection, userSortColumn, userSortDirection, userRoleFilter, bookingStatusFilter, repaymentStatusFilter]);
 
   useEffect(() => {
     let tempBookings = [...bookings];
-    if (tripIdFilter) tempBookings = tempBookings.filter(b => b.bookingId.toLowerCase().includes(tripIdFilter.toLowerCase()));
+    if (tripIdFilter) tempBookings = tempBookings.filter(b => b.bookingId && b.bookingId.toLowerCase().includes(tripIdFilter.toLowerCase()));
     if (driverIdFilter) tempBookings = tempBookings.filter(b => b.driverId?.toLowerCase().includes(driverIdFilter.toLowerCase()));
-    if (bookingStatusFilter !== 'all') tempBookings = tempBookings.filter(b => b.status === bookingStatusFilter);
-    if (repaymentStatusFilter !== 'all') tempBookings = tempBookings.filter(b => b.repayStatus === repaymentStatusFilter);
+    // Status and RepaymentStatus filters are now applied in the Firestore query
     setFilteredBookings(tempBookings);
-  }, [bookings, tripIdFilter, driverIdFilter, bookingStatusFilter, repaymentStatusFilter]);
+  }, [bookings, tripIdFilter, driverIdFilter]);
 
   useEffect(() => {
     let tempUsers = [...users];
     if (userEmailFilter) tempUsers = tempUsers.filter(u => u.email?.toLowerCase().includes(userEmailFilter.toLowerCase()));
+    // Role filter is now applied in Firestore query
     setFilteredUsers(tempUsers);
   }, [users, userEmailFilter]);
 
 
   const handleBookingSort = (column: keyof Booking | 'estimatedTransportCost' | 'createdAt') => {
-    if (bookingSortColumn === column) setBookingSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setBookingSortColumn(column); setBookingSortDirection('asc'); }
+    setBookingSortDirection(prev => bookingSortColumn === column && prev === 'asc' ? 'desc' : 'asc');
+    setBookingSortColumn(column); 
     setBookingCurrentPage(1); setBookingLastVisible(null); setBookingFirstVisible(null);
+    // fetchBookings will be called by the useEffect dependency change
   };
 
   const handleUserSort = (column: keyof UserProfile | 'createdAt') => {
-    if (userSortColumn === column) setUserSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setUserSortColumn(column); setUserSortDirection('asc'); }
+    setUserSortDirection(prev => userSortColumn === column && prev === 'asc' ? 'desc' : 'asc');
+    setUserSortColumn(column); 
     setUserCurrentPage(1); setUserLastVisible(null); setUserFirstVisible(null);
+    // fetchUsers will be called by the useEffect dependency change
   };
 
   const handleBookingNextPage = () => {
-    if (bookingLastVisible && filteredBookings.length === ITEMS_PER_PAGE) {
+    if (bookingHasMore && !loadingBookings) {
       setBookingCurrentPage(prev => prev + 1); fetchBookings('next');
-    } else if (filteredBookings.length < ITEMS_PER_PAGE) {
+    } else if (!bookingHasMore && !loadingBookings) {
         toast({ title: "End of Results", description: "No more bookings to load.", variant: "default" });
     }
   };
   const handleBookingPrevPage = () => {
-    if (bookingFirstVisible && bookingCurrentPage > 1) {
+    if (bookingCurrentPage > 1 && !loadingBookings) { // bookingFirstVisible check is implicit in currentPage > 1
       setBookingCurrentPage(prev => prev - 1); fetchBookings('prev');
     }
   };
   const refreshBookings = () => {
-    setBookingCurrentPage(1); setBookingLastVisible(null); setBookingFirstVisible(null); fetchBookings('first');
-    toast({title: "Bookings Refreshed", description: "Latest bookings loaded."})
+    setBookingCurrentPage(1); setBookingLastVisible(null); setBookingFirstVisible(null); setBookingHasMore(true);
+    fetchBookings('first');
+    toast({title: "Bookings Refreshed", description: "Loading latest bookings..."})
   }
 
   const handleUserNextPage = () => {
-    if (userLastVisible && filteredUsers.length === ITEMS_PER_PAGE) {
+    if (userHasMore && !loadingUsers) {
       setUserCurrentPage(prev => prev + 1); fetchUsers('next');
-    } else if (filteredUsers.length < ITEMS_PER_PAGE) {
+    } else if (!userHasMore && !loadingUsers) {
         toast({ title: "End of Results", description: "No more users to load.", variant: "default" });
     }
   };
   const handleUserPrevPage = () => {
-    if (userFirstVisible && userCurrentPage > 1) {
+    if (userCurrentPage > 1 && !loadingUsers) {
       setUserCurrentPage(prev => prev - 1); fetchUsers('prev');
     }
   };
   const refreshUsers = () => {
-    setUserCurrentPage(1); setUserLastVisible(null); setUserFirstVisible(null); fetchUsers('first');
-    toast({title: "Users Refreshed", description: "Latest users loaded."})
+    setUserCurrentPage(1); setUserLastVisible(null); setUserFirstVisible(null); setUserHasMore(true);
+    fetchUsers('first');
+    toast({title: "Users Refreshed", description: "Loading latest users..."})
   }
 
-
-  // Storage Demo handlers (now uses mock storage service)
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setFile(event.target.files[0]);
-      setFilePath(`admin-uploads/${event.target.files[0].name}`); // Keep path generation for realism
+      setFilePath(`admin-uploads/${event.target.files[0].name}`); 
     }
   };
   const handleUpload = async () => {
@@ -274,33 +329,31 @@ export default function AdminDashboardPage() {
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center"><FilterIcon className="mr-2 h-5 w-5" /> Trip Filters</CardTitle>
-           <Button onClick={refreshBookings} variant="outline" size="sm"><RefreshCw className="h-4 w-4 mr-2"/>Refresh Trips</Button>
+           <Button onClick={refreshBookings} variant="outline" size="sm" disabled={loadingBookings}><RefreshCw className="h-4 w-4 mr-2"/>Refresh Trips</Button>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Input placeholder="Filter by Trip ID..." value={tripIdFilter} onChange={(e) => setTripIdFilter(e.target.value)} />
-          <Input placeholder="Filter by Driver ID..." value={driverIdFilter} onChange={(e) => setDriverIdFilter(e.target.value)} />
-          <Select value={bookingStatusFilter} onValueChange={(value) => setBookingStatusFilter(value as BookingStatus | 'all')}>
+          <Input placeholder="Filter by Trip ID (client-side)" value={tripIdFilter} onChange={(e) => setTripIdFilter(e.target.value)} />
+          <Input placeholder="Filter by Driver ID (client-side)" value={driverIdFilter} onChange={(e) => setDriverIdFilter(e.target.value)} />
+          <Select value={bookingStatusFilter} onValueChange={(value) => {setBookingStatusFilter(value as BookingStatus | 'all'); setBookingCurrentPage(1); setBookingLastVisible(null); setBookingFirstVisible(null); setBookingHasMore(true);}}>
             <SelectTrigger><SelectValue placeholder="Filter by Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              {Object.values(BookingStatus).map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+              {Object.values(BookingStatus).map(status => <SelectItem key={status} value={status}>{status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={repaymentStatusFilter} onValueChange={(value) => setRepaymentStatusFilter(value as RepaymentStatus | 'all')}>
+          <Select value={repaymentStatusFilter} onValueChange={(value) => {setRepaymentStatusFilter(value as RepaymentStatus | 'all'); setBookingCurrentPage(1); setBookingLastVisible(null); setBookingFirstVisible(null); setBookingHasMore(true);}}>
             <SelectTrigger><SelectValue placeholder="Filter by Repayment Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Repayment Statuses</SelectItem>
-              {Object.values(RepaymentStatus).map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+              {Object.values(RepaymentStatus).map(status => <SelectItem key={status} value={status}>{status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
             </SelectContent>
           </Select>
         </CardContent>
          <CardContent>
           {loadingBookings && memoizedFilteredBookings.length === 0 ? (
-            <p className="text-center py-4">Loading bookings...</p>
-          ) : !loadingBookings && memoizedFilteredBookings.length === 0 && bookings.length > 0 ? (
-            <p className="text-center text-muted-foreground py-4">No bookings match filters.</p>
-          ) : !loadingBookings && bookings.length === 0 ? (
-             <p className="text-center text-muted-foreground py-4">No bookings found.</p>
+            <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2">Loading bookings...</p></div>
+          ) : !loadingBookings && memoizedFilteredBookings.length === 0 ? (
+             <p className="text-center text-muted-foreground py-4">No bookings match current filters or no bookings found.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -319,21 +372,21 @@ export default function AdminDashboardPage() {
                 <TableBody>
                   {memoizedFilteredBookings.map((booking) => (
                     <TableRow key={booking.bookingId}>
-                      <TableCell className="font-medium">{booking.bookingId.substring(0,8)}...</TableCell>
+                      <TableCell className="font-medium">{booking.bookingId ? booking.bookingId.substring(0,8) + '...' : 'N/A'}</TableCell>
                       <TableCell>{(booking as any).goodsType || 'N/A'}</TableCell>
                       <TableCell>{booking.vehicleType || 'N/A'}</TableCell>
                       <TableCell>₹{booking.estimatedTransportCost?.toLocaleString() || 'N/A'}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold 
+                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap 
                         ${booking.status === BookingStatus.COMPLETED ? 'bg-green-100 text-green-700' : 
                           booking.status === BookingStatus.CANCELLED_BY_ADMIN || booking.status === BookingStatus.CANCELLED_BY_BUYER || booking.status === BookingStatus.CANCELLED_BY_SELLER ? 'bg-red-100 text-red-700' :
                           booking.status === BookingStatus.IN_TRANSIT ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {booking.status}
+                        {booking.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </span></TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold ${booking.repayStatus === RepaymentStatus.PAID ? 'bg-green-100 text-green-700' : booking.repayStatus === RepaymentStatus.OVERDUE ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {booking.repayStatus}
-                        </span></TableCell>
+                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${booking.repayStatus === RepaymentStatus.PAID ? 'bg-green-100 text-green-700' : booking.repayStatus === RepaymentStatus.OVERDUE ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {booking.repayStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </span></TableCell>
                       <TableCell>
-                        {booking.createdAt ? format(new Date((booking.createdAt as any).seconds * 1000), 'PPp') : 'N/A'}
+                        {booking.createdAt && (booking.createdAt as any).seconds ? format(new Date((booking.createdAt as any).seconds * 1000), 'PPp') : booking.createdAt instanceof Date ? format(booking.createdAt, 'PPp') : 'N/A'}
                       </TableCell>
                       <TableCell className="space-x-1">
                         <Button variant="ghost" size="sm" onClick={() => toast({title: "View Booking", description: `Details for ${booking.bookingId}`})}><Eye className="h-4 w-4"/></Button>
@@ -348,7 +401,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-end space-x-2 py-4">
             <Button variant="outline" size="sm" onClick={handleBookingPrevPage} disabled={bookingCurrentPage === 1 || loadingBookings}><ChevronLeft className="h-4 w-4 mr-1"/>Previous</Button>
             <span className="text-sm text-muted-foreground">Page {bookingCurrentPage}</span>
-            <Button variant="outline" size="sm" onClick={handleBookingNextPage} disabled={loadingBookings || memoizedFilteredBookings.length < ITEMS_PER_PAGE || !bookingLastVisible}>Next<ChevronRight className="h-4 w-4 ml-1"/></Button>
+            <Button variant="outline" size="sm" onClick={handleBookingNextPage} disabled={loadingBookings || !bookingHasMore}>Next<ChevronRight className="h-4 w-4 ml-1"/></Button>
           </div>
         </CardContent>
       </Card>
@@ -359,25 +412,23 @@ export default function AdminDashboardPage() {
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5" /> User Management</CardTitle>
-            <Button onClick={refreshUsers} variant="outline" size="sm"><RefreshCw className="h-4 w-4 mr-2"/>Refresh Users</Button>
+            <Button onClick={refreshUsers} variant="outline" size="sm" disabled={loadingUsers}><RefreshCw className="h-4 w-4 mr-2"/>Refresh Users</Button>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <Input placeholder="Filter by Email..." value={userEmailFilter} onChange={(e) => setUserEmailFilter(e.target.value)} />
-            <Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as UserRole | 'all')}>
+            <Input placeholder="Filter by Email (client-side)..." value={userEmailFilter} onChange={(e) => setUserEmailFilter(e.target.value)} />
+            <Select value={userRoleFilter} onValueChange={(value) => {setUserRoleFilter(value as UserRoleEnum | 'all'); setUserCurrentPage(1); setUserLastVisible(null); setUserFirstVisible(null); setUserHasMore(true); }}>
                 <SelectTrigger><SelectValue placeholder="Filter by Role" /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
-                    {Object.values(UserRoleEnum).map(role => <SelectItem key={role} value={role}>{role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
+                    {Object.values(UserRoleEnum).map(role => <SelectItem key={role} value={role}>{role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
                 </SelectContent>
             </Select>
         </CardContent>
         <CardContent>
           {loadingUsers && memoizedFilteredUsers.length === 0 ? (
-            <p className="text-center py-4">Loading users...</p>
-          ) : !loadingUsers && memoizedFilteredUsers.length === 0 && users.length > 0 ? (
-            <p className="text-center text-muted-foreground py-4">No users match filters.</p>
-          ) : !loadingUsers && users.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">No users found.</p>
+            <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2">Loading users...</p></div>
+          ) : !loadingUsers && memoizedFilteredUsers.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">No users match current filters or no users found.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -394,14 +445,14 @@ export default function AdminDashboardPage() {
                 <TableBody>
                   {memoizedFilteredUsers.map((user) => (
                     <TableRow key={user.uid}>
-                      <TableCell className="font-medium">{user.uid.substring(0,10)}...</TableCell>
-                      <TableCell>{user.email}</TableCell>
+                      <TableCell className="font-medium">{user.uid ? user.uid.substring(0,10) + '...' : 'N/A'}</TableCell>
+                      <TableCell>{user.email || 'N/A'}</TableCell>
                       <TableCell>{user.displayName || 'N/A'}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === UserRoleEnum.ADMIN ? 'bg-purple-100 text-purple-700' : user.role === UserRoleEnum.TRANSPORT_OWNER ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${user.role === UserRoleEnum.ADMIN ? 'bg-purple-100 text-purple-700' : user.role === UserRoleEnum.TRANSPORT_OWNER ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {user.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>
                       </TableCell>
                       <TableCell>
-                        {user.createdAt ? format(new Date((user.createdAt as any).seconds * 1000), 'PPp') : 'N/A'}
+                        {user.createdAt && (user.createdAt as any).seconds ? format(new Date((user.createdAt as any).seconds * 1000), 'PPp') : user.createdAt instanceof Date ? format(user.createdAt, 'PPp') : 'N/A'}
                       </TableCell>
                       <TableCell className="space-x-1">
                         <Button variant="ghost" size="sm" onClick={() => toast({title: "View User", description: `Details for ${user.email}`})}><Eye className="h-4 w-4"/></Button>
@@ -416,7 +467,7 @@ export default function AdminDashboardPage() {
            <div className="flex items-center justify-end space-x-2 py-4">
             <Button variant="outline" size="sm" onClick={handleUserPrevPage} disabled={userCurrentPage === 1 || loadingUsers}><ChevronLeft className="h-4 w-4 mr-1"/>Previous</Button>
             <span className="text-sm text-muted-foreground">Page {userCurrentPage}</span>
-            <Button variant="outline" size="sm" onClick={handleUserNextPage} disabled={loadingUsers || memoizedFilteredUsers.length < ITEMS_PER_PAGE || !userLastVisible}>Next<ChevronRight className="h-4 w-4 ml-1"/></Button>
+            <Button variant="outline" size="sm" onClick={handleUserNextPage} disabled={loadingUsers || !userHasMore}>Next<ChevronRight className="h-4 w-4 ml-1"/></Button>
           </div>
         </CardContent>
       </Card>
@@ -468,7 +519,10 @@ export default function AdminDashboardPage() {
                   defaultValue="admin-uploads/"
                   className="flex-grow"
                 />
-                <Button onClick={() => handleListItems((document.getElementById('list-path-input') as HTMLInputElement)?.value || '')}>
+                <Button onClick={() => {
+                    const pathInput = document.getElementById('list-path-input') as HTMLInputElement;
+                    handleListItems(pathInput?.value || '');
+                }}>
                     List Mock Items
                 </Button>
             </div>

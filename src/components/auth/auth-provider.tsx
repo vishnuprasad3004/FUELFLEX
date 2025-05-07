@@ -4,8 +4,9 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
-import { getUserProfile, type UserProfile } from '@/services/user-service'; // Ensure this path is correct
+import { getUserProfile, type UserProfile } from '@/services/user-service'; 
 import { Loader2 } from 'lucide-react';
+import { UserRole } from '@/models/user'; // Added import for UserRole
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -18,12 +19,72 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// --- DEVELOPMENT BYPASS CONTROL ---
+// SET TO true TO BYPASS AUTH AND MOCK A USER.
+// SET TO false FOR NORMAL AUTHENTICATION.
+// WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
+const DEVELOPMENT_BYPASS_AUTH = true; 
+const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.TRANSPORT_OWNER, UserRole.BUYER_SELLER)
+// --- END DEVELOPMENT BYPASS CONTROL ---
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (DEVELOPMENT_BYPASS_AUTH) {
+      console.warn(
+        `%cAUTH BYPASS ACTIVE: Mocking user with role: ${MOCK_USER_ROLE_FOR_BYPASS}`,
+        "color: orange; font-weight: bold; font-size: 14px;"
+      );
+      console.warn(
+        `%cEnsure Firebase API keys in .env are correct for actual Firebase functionality. This bypass is for UI navigation only.`,
+        "color: orange; font-size: 12px;"
+      );
+      
+      const mockFirebaseUser: FirebaseUser = {
+        uid: 'mock-dev-user-uid',
+        email: `dev-${MOCK_USER_ROLE_FOR_BYPASS}@example.com`,
+        displayName: `Dev ${MOCK_USER_ROLE_FOR_BYPASS.replace('_',' ')}`,
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {} as any, // Cast to any for simplicity if issues arise with specific metadata structure
+        providerData: [],
+        providerId: 'password', // Mock provider
+        photoURL: null,
+        phoneNumber: null,
+        tenantId: null,
+        delete: async () => { console.log("Mock delete called"); },
+        getIdToken: async () => "mock-id-token",
+        getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any), // Cast for simplicity
+        reload: async () => { console.log("Mock reload called"); },
+        toJSON: () => ({ uid: 'mock-dev-user-uid', email: `dev-${MOCK_USER_ROLE_FOR_BYPASS}@example.com` }),
+      } as FirebaseUser; 
+
+      const mockUserProfileData: UserProfile = {
+        uid: 'mock-dev-user-uid',
+        email: `dev-${MOCK_USER_ROLE_FOR_BYPASS}@example.com`,
+        displayName: `Dev ${MOCK_USER_ROLE_FOR_BYPASS.replace('_',' ')} User`,
+        role: MOCK_USER_ROLE_FOR_BYPASS,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      setCurrentUser(mockFirebaseUser);
+      setUserProfile(mockUserProfileData);
+      setLoading(false);
+      return () => {}; // No-op for unsubscribe in bypass mode
+    }
+
+    // Regular Firebase auth state listener
+    if (!auth) {
+      console.error("AuthProvider: Firebase 'auth' instance is not available. Authentication will not work. Check .env configuration.");
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
@@ -32,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserProfile(profile);
         } catch (error) {
           console.error("Error fetching user profile:", error);
-          setUserProfile(null); // Reset profile on error
+          setUserProfile(null); 
         }
       } else {
         setUserProfile(null);
@@ -41,13 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, []); 
 
-  const isAdmin = userProfile?.role === 'admin';
-  const isTransportOwner = userProfile?.role === 'transport_owner';
-  const isBuyerSeller = userProfile?.role === 'buyer_seller';
+  const isAdmin = userProfile?.role === UserRole.ADMIN;
+  const isTransportOwner = userProfile?.role === UserRole.TRANSPORT_OWNER;
+  const isBuyerSeller = userProfile?.role === UserRole.BUYER_SELLER;
 
-  if (loading) {
+  if (loading && !DEVELOPMENT_BYPASS_AUTH) { 
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
