@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -93,25 +94,30 @@ export default function ListGoodPage() {
         }
       }
 
-      const goodData = {
+      const goodData: any = { // Use 'any' or a more specific type that allows conditional properties
         sellerId: currentUser.uid,
         productName: data.productName,
         category: data.category,
         price: data.price,
-        quantity: data.quantity, // Will be undefined if not provided, or a number
         description: data.description,
         location: { 
           address: data.locationAddress,
-          latitude: 0, 
-          longitude: 0, 
+          latitude: 0, // Placeholder, ideally get from a map input or geocoding service
+          longitude: 0, // Placeholder
         },
-        // contact: data.contact, // Removed contact field
         images: imageUrls,
-        weightKg: data.weightKg,
         postedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         isActive: true, 
       };
+
+      if (data.quantity !== undefined) {
+        goodData.quantity = data.quantity;
+      }
+      if (data.weightKg !== undefined) {
+        goodData.weightKg = data.weightKg;
+      }
+
 
       const docRef = await addDoc(collection(firestore, 'goods'), goodData);
       toast({
@@ -241,3 +247,4 @@ export default function ListGoodPage() {
     </div>
   );
 }
+
