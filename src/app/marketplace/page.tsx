@@ -4,7 +4,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ShoppingBag, PlusCircle, Search, Filter, ArrowRight } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Filter, ArrowRight, Truck } from 'lucide-react'; // Added Truck
 import { useState, useEffect, useMemo } from 'react';
 import type { Good, GoodsCategory } from '@/models/goods';
 import { GOODS_CATEGORIES } from '@/models/goods';
@@ -59,7 +59,10 @@ export default function MarketplacePage() {
       // Note: Firestore requires composite indexes for queries with multiple range/orderBy on different fields
       // For simplicity, this example might not combine category filter with all sortings perfectly without indexes.
       if (categoryFilter !== 'all') {
-         goodsQuery = query(goodsQuery, where('category', '==', categoryFilter));
+         goodsQuery = query(collection(firestore, 'goods'), where('isActive', '==', true), where('category', '==', categoryFilter), orderBy(sortBy, sortDirection), limit(ITEMS_PER_PAGE));
+         if (loadMore && lastVisibleDoc) {
+            goodsQuery = query(collection(firestore, 'goods'), where('isActive', '==', true), where('category', '==', categoryFilter), orderBy(sortBy, sortDirection), startAfter(lastVisibleDoc), limit(ITEMS_PER_PAGE));
+         }
       }
 
 
@@ -95,13 +98,13 @@ export default function MarketplacePage() {
   };
 
   useEffect(() => {
-    const unsubscribe = fetchGoods();
+    const unsubscribePromise = fetchGoods();
      return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      } else {
-        unsubscribe?.then(unsub => unsub && unsub());
-      }
+      unsubscribePromise?.then(unsub => {
+        if (typeof unsub === 'function') {
+          unsub();
+        }
+      });
     };
   }, [sortBy, sortDirection, categoryFilter]); // Refetch on sort or category change
 
@@ -269,3 +272,4 @@ export default function MarketplacePage() {
 // src/app/marketplace/goods/[id]/page.tsx
 // src/app/marketplace/list-good/page.tsx
 // src/app/marketplace/book-transport/page.tsx
+
