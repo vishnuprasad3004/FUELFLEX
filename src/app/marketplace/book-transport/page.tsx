@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Truck, Send, ArrowLeft, CalendarIcon } from 'lucide-react';
+import { Loader2, Truck, Send, ArrowLeft, CalendarIcon, MapPinIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -22,20 +22,20 @@ import { useToast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils"; // For Popover Calendar styling
+import { cn } from "@/lib/utils"; 
 import { calculatePrice, type CalculatePriceInput, type CalculatePriceOutput } from '@/ai/flows/ai-powered-pricing';
 
 
 const bookTransportSchema = z.object({
   // Pickup (could be from Goods or manual)
   pickupAddress: z.string().min(5, "Pickup address is required"),
-  pickupLatitude: z.number().optional(), // Will be filled by geocoding or from Goods
+  pickupLatitude: z.number().optional(), 
   pickupLongitude: z.number().optional(),
   
   // Drop-off
   dropoffAddress: z.string().min(5, "Drop-off address is required"),
-  dropoffLatitude: z.number({invalid_type_error: "Drop-off latitude must be a number"}).min(-90).max(90),
-  dropoffLongitude: z.number({invalid_type_error: "Drop-off longitude must be a number"}).min(-180).max(180),
+  dropoffLatitude: z.number({required_error: "Drop-off latitude is required from map selection.", invalid_type_error: "Drop-off latitude must be a number"}).min(-90).max(90),
+  dropoffLongitude: z.number({required_error: "Drop-off longitude is required from map selection.", invalid_type_error: "Drop-off longitude must be a number"}).min(-180).max(180),
 
   goodsType: z.string().min(3, "Goods type/description is required"),
   weightKg: z.preprocess(
@@ -51,6 +51,31 @@ const bookTransportSchema = z.object({
 
 type BookTransportFormInputs = z.infer<typeof bookTransportSchema>;
 
+// Placeholder for a Map Modal component (not implemented in this step)
+// interface MapModalProps {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   onLocationSelect: (coords: { lat: number; lng: number; address: string }) => void;
+//   initialAddress?: string;
+// }
+// const MapModal: React.FC<MapModalProps> = ({ isOpen, onClose, onLocationSelect, initialAddress }) => {
+//   if (!isOpen) return null;
+//   // This would contain the actual map implementation (e.g., Google Maps, Leaflet)
+//   return (
+//     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+//       <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '80%', maxWidth: '600px' }}>
+//         <h2>Select Location on Map</h2>
+//         <p>Map component would be here. For now, using placeholder coordinates.</p>
+//         <input type="text" placeholder="Search address or pick on map" defaultValue={initialAddress} />
+//         {/* Simulate selecting a location */}
+//         <Button onClick={() => onLocationSelect({ lat: 19.0760, lng: 72.8777, address: "Mumbai, Maharashtra, India (Mock)" })}>Select Mumbai (Mock)</Button>
+//         <Button onClick={onClose} style={{ marginLeft: '10px' }}>Close</Button>
+//       </div>
+//     </div>
+//   );
+// };
+
+
 export default function BookTransportPage() {
   useAuthRedirect({ requireAuth: true, requireRole: 'buyer_seller' });
   const { currentUser } = useAuth();
@@ -64,6 +89,10 @@ export default function BookTransportPage() {
   const [priceEstimate, setPriceEstimate] = useState<CalculatePriceOutput | null>(null);
   const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
 
+  // Map Modal State
+  const [isPickupMapOpen, setIsPickupMapOpen] = useState(false);
+  const [isDropoffMapOpen, setIsDropoffMapOpen] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -73,11 +102,11 @@ export default function BookTransportPage() {
     getValues,
     formState: { errors },
     reset,
+    trigger, // To manually trigger validation
   } = useForm<BookTransportFormInputs>({
     resolver: zodResolver(bookTransportSchema),
   });
 
-  // Watch relevant fields for price estimation
   const watchedFieldsForEstimation = watch([
     "pickupLatitude", "pickupLongitude", "dropoffLatitude", "dropoffLongitude", 
     "weightKg", "vehicleType"
@@ -97,6 +126,8 @@ export default function BookTransportPage() {
             setValue('pickupLongitude', goodData.location.longitude);
             setValue('goodsType', goodData.productName);
             if (goodData.weightKg) setValue('weightKg', goodData.weightKg);
+            // Trigger validation for potentially pre-filled fields
+            trigger(['pickupLatitude', 'pickupLongitude']);
           } else {
             toast({ title: "Error", description: "Associated good not found.", variant: "destructive"});
           }
@@ -109,16 +140,53 @@ export default function BookTransportPage() {
       };
       fetchGoodDetails();
     }
-  }, [goodsId, setValue, toast]);
+  }, [goodsId, setValue, toast, trigger]);
+
+  const handleSelectOnMap = useCallback( (locationType: 'pickup' | 'dropoff') => {
+    // This is where you would open a map modal or navigate to a map selection page.
+    // For this example, we'll simulate selecting a location and setting values.
+    // In a real app, `MapModal` component would be used here.
+    
+    const mockSelectedLocation = {
+        lat: locationType === 'dropoff' ? 19.0760 : 28.6139, // Mumbai for dropoff, Delhi for pickup (mock)
+        lng: locationType === 'dropoff' ? 72.8777 : 77.2090,
+        address: locationType === 'dropoff' ? "Mumbai Central, Mumbai, Maharashtra (Mock)" : "Connaught Place, New Delhi, Delhi (Mock)",
+    };
+
+    if (locationType === 'pickup') {
+      setValue('pickupLatitude', mockSelectedLocation.lat, { shouldValidate: true });
+      setValue('pickupLongitude', mockSelectedLocation.lng, { shouldValidate: true });
+      setValue('pickupAddress', mockSelectedLocation.address); // Update address field too
+      setIsPickupMapOpen(false);
+    } else {
+      setValue('dropoffLatitude', mockSelectedLocation.lat, { shouldValidate: true });
+      setValue('dropoffLongitude', mockSelectedLocation.lng, { shouldValidate: true });
+      setValue('dropoffAddress', mockSelectedLocation.address); // Update address field too
+      setIsDropoffMapOpen(false);
+    }
+    toast({ title: "Location Selected (Mock)", description: `${mockSelectedLocation.address} set for ${locationType}.` });
+  }, [setValue, toast]);
+
 
   const handleGetPriceEstimate = async () => {
+    // Ensure lat/lng are validated before estimating
+    const isValidPickupLat = await trigger("pickupLatitude");
+    const isValidPickupLng = await trigger("pickupLongitude");
+    const isValidDropoffLat = await trigger("dropoffLatitude");
+    const isValidDropoffLng = await trigger("dropoffLongitude");
+
+    if (!isValidPickupLat || !isValidPickupLng || !isValidDropoffLat || !isValidDropoffLng) {
+      toast({ title: "Validation Error", description: "Please ensure pickup and drop-off locations are selected correctly.", variant: "destructive" });
+      return;
+    }
+
     const values = getValues();
     const { pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude, weightKg, vehicleType } = values;
 
     if (pickupLatitude == null || pickupLongitude == null || dropoffLatitude == null || dropoffLongitude == null || !weightKg || !vehicleType) {
       toast({
         title: "Missing Information",
-        description: "Please fill in pickup/drop-off coordinates, weight, and vehicle type to get an estimate.",
+        description: "Please ensure pickup/drop-off locations (selected via map), weight, and vehicle type are filled to get an estimate.",
         variant: "warning",
       });
       return;
@@ -150,33 +218,29 @@ export default function BookTransportPage() {
     }
   };
   
-  // Debounced price estimation or manual trigger might be better for UX
-  // For now, let's use a manual button.
 
   const onSubmit: SubmitHandler<BookTransportFormInputs> = async (data) => {
     if (!currentUser) {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-    // A real app would use a geocoding service here for pickupAddress if lat/lng not set
+    
+    // Crucial: Ensure coordinates are set. They are required by the schema.
+    // If a map module is used, it must populate these values.
     if (data.pickupLatitude == null || data.pickupLongitude == null) {
-        toast({title: "Geocoding Needed", description: "Pickup location needs coordinates. (Geocoding not implemented in this demo)", variant: "warning"});
-        // In a real app, call geocoding service:
-        // const coords = await geocodeAddress(data.pickupAddress);
-        // setValue('pickupLatitude', coords.lat);
-        // setValue('pickupLongitude', coords.lng);
-        // For demo, let's use placeholders or prevent submission
-        // For now, we'll assume they are set if coming from goodsId or manually.
-        // This check is more for if a user just types an address without it being resolved.
+        toast({title: "Pickup Location Incomplete", description: "Pickup coordinates are missing. Please select the pickup location on the map.", variant: "warning"});
         return; 
     }
-
+    if (data.dropoffLatitude == null || data.dropoffLongitude == null) {
+        toast({title: "Drop-off Location Incomplete", description: "Drop-off coordinates are missing. Please select the drop-off location on the map.", variant: "warning"});
+        return;
+    }
 
     setLoading(true);
     try {
       const bookingData = {
         buyerId: currentUser.uid,
-        goodsId: goodsId || null, // Link to good if applicable
+        goodsId: goodsId || null, 
         pickupLocation: {
           address: data.pickupAddress,
           latitude: data.pickupLatitude,
@@ -193,9 +257,8 @@ export default function BookTransportPage() {
         preferredPickupDate: data.preferredPickupDate || null,
         specialInstructions: data.specialInstructions || '',
         status: BookingStatus.PENDING,
-        estimatedTransportCost: priceEstimate?.estimatedPrice || 0, // Store estimate
-        // fuelCreditRequested: false, // Default or from form
-        repayStatus: RepaymentStatus.NOT_APPLICABLE, // Default
+        estimatedTransportCost: priceEstimate?.estimatedPrice || 0, 
+        repayStatus: RepaymentStatus.NOT_APPLICABLE, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         actionLogs: [{
@@ -212,9 +275,7 @@ export default function BookTransportPage() {
       });
       reset();
       setPriceEstimate(null);
-      // router.push(`/marketplace/booking/${docRef.id}`); // Redirect to booking confirmation/details
       router.push('/marketplace');
-
 
     } catch (error: any) {
       console.error("Error booking transport:", error);
@@ -245,7 +306,7 @@ export default function BookTransportPage() {
       <Card className="max-w-3xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-bold flex items-center"><Truck className="mr-3 h-7 w-7" /> Book Goods Transport</CardTitle>
-          <CardDescription>Enter details for your shipment. All fields marked with * are required.</CardDescription>
+          <CardDescription>Enter details for your shipment. Locations are selected via map. Fields marked * are required.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -255,10 +316,24 @@ export default function BookTransportPage() {
               <div className="space-y-4 mt-2">
                 <div>
                   <Label htmlFor="pickupAddress">Pickup Address*</Label>
-                  <Input id="pickupAddress" {...register('pickupAddress')} placeholder="Full pickup address" disabled={!!goodsId} />
+                  <Input id="pickupAddress" {...register('pickupAddress')} placeholder="Type address or select on map" disabled={!!goodsId && !!getValues("pickupAddress")} />
                   {errors.pickupAddress && <p className="text-sm text-destructive mt-1">{errors.pickupAddress.message}</p>}
                 </div>
-                {/* Lat/Lng for pickup could be hidden if auto-filled from goods or geocoded */}
+                 {/* Hidden fields for pickup lat/lng, populated by map or pre-filled */}
+                <input type="hidden" {...register('pickupLatitude')} />
+                <input type="hidden" {...register('pickupLongitude')} />
+                {errors.pickupLatitude && <p className="text-sm text-destructive mt-1">{errors.pickupLatitude.message}</p>}
+                {errors.pickupLongitude && <p className="text-sm text-destructive mt-1">{errors.pickupLongitude.message}</p>}
+                
+                {/* Only show "Select on Map" for pickup if not pre-filled from a good */}
+                {(!goodsId || !getValues("pickupLatitude")) && (
+                    <Button type="button" variant="outline" onClick={() => handleSelectOnMap('pickup')} className="w-full">
+                        <MapPinIcon className="mr-2 h-4 w-4" /> Select Pickup on Map (Mock)
+                    </Button>
+                )}
+                {getValues("pickupLatitude") && getValues("pickupLongitude") && (
+                    <p className="text-xs text-muted-foreground">Pickup Coordinates: Lat: {getValues("pickupLatitude")?.toFixed(4)}, Lng: {getValues("pickupLongitude")?.toFixed(4)}</p>
+                )}
               </div>
             </fieldset>
 
@@ -268,22 +343,21 @@ export default function BookTransportPage() {
               <div className="space-y-4 mt-2">
                 <div>
                   <Label htmlFor="dropoffAddress">Drop-off Address*</Label>
-                  <Input id="dropoffAddress" {...register('dropoffAddress')} placeholder="Full drop-off address" />
+                  <Input id="dropoffAddress" {...register('dropoffAddress')} placeholder="Type address or select on map" />
                   {errors.dropoffAddress && <p className="text-sm text-destructive mt-1">{errors.dropoffAddress.message}</p>}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="dropoffLatitude">Drop-off Latitude*</Label>
-                        <Input id="dropoffLatitude" type="number" step="any" {...register('dropoffLatitude', { valueAsNumber: true })} placeholder="e.g., 19.0760" />
-                        {errors.dropoffLatitude && <p className="text-sm text-destructive mt-1">{errors.dropoffLatitude.message}</p>}
-                    </div>
-                    <div>
-                        <Label htmlFor="dropoffLongitude">Drop-off Longitude*</Label>
-                        <Input id="dropoffLongitude" type="number" step="any" {...register('dropoffLongitude', { valueAsNumber: true })} placeholder="e.g., 72.8777" />
-                        {errors.dropoffLongitude && <p className="text-sm text-destructive mt-1">{errors.dropoffLongitude.message}</p>}
-                    </div>
-                </div>
-                <p className="text-xs text-muted-foreground">Tip: Use Google Maps to find coordinates by right-clicking on a location.</p>
+                {/* Hidden fields for lat/lng, will be populated by map selection */}
+                <input type="hidden" {...register('dropoffLatitude')} />
+                <input type="hidden" {...register('dropoffLongitude')} />
+                {errors.dropoffLatitude && <p className="text-sm text-destructive mt-1">{errors.dropoffLatitude.message}</p>}
+                {errors.dropoffLongitude && <p className="text-sm text-destructive mt-1">{errors.dropoffLongitude.message}</p>}
+
+                <Button type="button" variant="outline" onClick={() => handleSelectOnMap('dropoff')} className="w-full">
+                  <MapPinIcon className="mr-2 h-4 w-4" /> Select Drop-off on Map (Mock)
+                </Button>
+                {getValues("dropoffLatitude") && getValues("dropoffLongitude") && (
+                    <p className="text-xs text-muted-foreground">Drop-off Coordinates: Lat: {getValues("dropoffLatitude")?.toFixed(4)}, Lng: {getValues("dropoffLongitude")?.toFixed(4)}</p>
+                )}
               </div>
             </fieldset>
             
@@ -293,7 +367,7 @@ export default function BookTransportPage() {
               <div className="space-y-4 mt-2">
                  <div>
                   <Label htmlFor="goodsType">Type/Description of Goods*</Label>
-                  <Input id="goodsType" {...register('goodsType')} placeholder="e.g., Electronics, Furniture, 10 boxes of Apples" disabled={!!goodsId} />
+                  <Input id="goodsType" {...register('goodsType')} placeholder="e.g., Electronics, Furniture" disabled={!!goodsId && !!getValues("goodsType")} />
                   {errors.goodsType && <p className="text-sm text-destructive mt-1">{errors.goodsType.message}</p>}
                 </div>
                 <div>
@@ -349,7 +423,7 @@ export default function BookTransportPage() {
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 initialFocus
-                                disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} // Disable past dates
+                                disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} 
                             />
                             </PopoverContent>
                         </Popover>
@@ -393,6 +467,16 @@ export default function BookTransportPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Placeholder for Map Modal - in a real app this would be a proper component */}
+      {/* <MapModal 
+        isOpen={isPickupMapOpen || isDropoffMapOpen}
+        onClose={() => { setIsPickupMapOpen(false); setIsDropoffMapOpen(false); }}
+        onLocationSelect={(loc) => handleSelectOnMap(isPickupMapOpen ? 'pickup' : 'dropoff', loc)}
+        initialAddress={isPickupMapOpen ? getValues("pickupAddress") : getValues("dropoffAddress")}
+      /> */}
+
     </div>
   );
 }
+
