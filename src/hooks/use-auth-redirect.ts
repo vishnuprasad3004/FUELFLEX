@@ -54,5 +54,3 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
 
   return { currentUser, userProfile, loading };
 }
-
-```
