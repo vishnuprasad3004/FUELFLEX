@@ -270,3 +270,40 @@ Future<Map<String, dynamic>?> getPriceEstimateFromApi({
 ```
 Remember to handle API URLs correctly depending on whether you're running on an emulator, a physical device, or in production.
 Ensure the `vehicleType` string passed from Flutter matches one of the expected types defined in `src/models/booking.ts` in the Next.js backend.
+
+## Project Outline & Key Pages
+
+This Next.js application serves as the backend and admin interface for the FuelFlex platform.
+
+**Key User-Facing Pages (Conceptual - To be built or enhanced):**
+
+*   **`/` (Home Page):** Landing page with an overview of FuelFlex services, featured goods categories, and calls to action for booking transport or listing goods.
+*   **`/marketplace`:** Main marketplace page where users (Buyer/Sellers) can browse listed goods. Includes filtering (by category, price range, location) and search functionality.
+    *   **`/marketplace/goods/[id]`:** Detail page for a specific good, showing product information, seller details, pickup location, and an option to "Book Transport" for this item.
+    *   **`/marketplace/list-good`:** A form for Buyer/Sellers to list their goods for sale on the marketplace. Involves inputting product details, price, quantity, location, and uploading images (via Firebase Storage).
+    *   **`/marketplace/book-transport`:** A form for users to book transport. Can be accessed directly or pre-filled if booking from a specific good's detail page. Users input pickup/drop-off locations (with geocoding for addresses to lat/lng), goods description, weight, preferred vehicle type, and preferred pickup date. This page interacts with the `/api/calculate-price` endpoint to show an estimated cost before confirming the booking.
+*   **`/login`:** User login page.
+*   **`/create-account`:** User registration page, allowing users to select their role (Buyer/Seller, Transport Owner).
+*   **`/transport-owner/dashboard`:** Dashboard for users with the 'transport_owner' role. Displays a (mock) overview of their vehicle fleet, including vehicle name, type, registration, current location (mock), fuel level (mock percentage with progress bar), and FASTag balance (mock INR).
+*   **`/admin/dashboard`:** Dashboard for platform administrators. Provides tools to:
+    *   Monitor trips: View bookings with details like trip ID, goods type, vehicle, estimated cost, status (pending, in_transit, completed), repayment status, and booking date. Includes filtering by trip ID, driver ID, booking status, and repayment status. Pagination and sorting are implemented.
+    *   Manage users: View a list of users with their UID, email, display name, role, and join date. Includes filtering by email and role. Pagination and sorting are implemented.
+    *   File Management (Mock Demo): Demonstrates basic file upload, URL retrieval, and listing of items, simulating interaction with a storage service (currently mocked, but would use Firebase Storage).
+*   **`/contact`:** Contact Us page with a form and contact details.
+*   **`/faq`:** Frequently Asked Questions page.
+*   **`/privacy`:** Privacy Policy page.
+*   **`/terms`:** Terms of Service page.
+
+**Firebase Collections Outline:**
+
+*   **`users`**:
+    *   Document ID: `uid` (Firebase Auth user ID)
+    *   Fields: `email`, `phone?`, `role` (`buyer_seller` | `transport_owner` | `admin`), `displayName?`, `photoURL?`, `createdAt`, `updatedAt`.
+*   **`goods`**:
+    *   Document ID: `productId` (auto-generated)
+    *   Fields: `sellerId` (UID), `productName`, `category`, `price`, `quantity`, `description`, `location` (object: `address`, `latitude`, `longitude`), `contact`, `images?` (array of URLs), `weightKg?`, `postedAt`, `updatedAt`, `isActive`.
+*   **`bookings`**:
+    *   Document ID: `bookingId` (auto-generated)
+    *   Fields: `buyerId` (UID), `goodsId?` (ref to `goods` doc), `sellerId?` (UID, denormalized from `goods`), `pickupLocation` (object: `address`, `latitude`, `longitude` - from `goods` or manual), `dropoffLocation` (object: `address`, `latitude`, `longitude`), `goodsType`, `weightKg`, `vehicleType`, `preferredPickupDate?`, `status`, `driverId?`, `estimatedTransportCost?`, `finalTransportCost?`, `fuelCreditRequested?`, `fuelCost?`, `repayAmount?`, `repayDueDate?`, `repayStatus`, `createdAt`, `updatedAt`, `actionLogs` (array of objects), `specialInstructions?`.
+
+This outline should provide a good starting point for recreating the Firebase structure and understanding the application's flow. Remember to set up Firestore security rules to control access to these collections based on user roles.
