@@ -1,3 +1,4 @@
+
 // This MUST be the very first line
 'use client';
 
@@ -13,42 +14,41 @@ import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // No longer needed for vehicle type
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { VEHICLE_TYPES, type BookingVehicleType } from '@/models/booking'; // Using existing vehicle types
+// import { VEHICLE_TYPES, type BookingVehicleType } from '@/models/booking'; // No longer needed
 import { uploadFile as uploadFileToStorage } from '@/services/storage-service'; // Mock storage service
 
 interface Vehicle {
   id: string;
   name: string;
-  type: BookingVehicleType;
+  // type: BookingVehicleType; // Removed type
   registrationNumber: string;
   location: string; 
   fuelLevel: number; 
   fastagBalance: number; 
   status: 'idle' | 'in_transit' | 'maintenance' | 'offline';
   imageUrl: string;
-  rcBookUrl?: string; // URL for the RC book PDF/image
+  rcBookUrl?: string; 
   dataAiHint: string;
   lastUpdated: string;
 }
 
 // Mock data for demonstration
 const initialMockVehicles: Vehicle[] = [
-  { id: 'V001', name: 'Tata Ace Gold', type: 'Mini Truck (Tata Ace, Mahindra Jeeto, etc.)', registrationNumber: 'MH12AB1234', location: 'Mumbai, MH', fuelLevel: 75, fastagBalance: 1250, status: 'idle', imageUrl: 'https://picsum.photos/seed/tataacegold/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV001/200/300', dataAiHint: 'mini truck city', lastUpdated: '2 mins ago' },
-  { id: 'V002', name: 'Ashok Leyland Dost+', type: 'LCV (Tata 407, Eicher Pro 2000, etc.)', registrationNumber: 'KA01CD5678', location: 'En route to Pune', fuelLevel: 40, fastagBalance: 800, status: 'in_transit', imageUrl: 'https://picsum.photos/seed/leylanddostplus/400/250', dataAiHint: 'light truck highway', lastUpdated: 'Now' },
-  { id: 'V003', name: 'Mahindra Bolero Maxx', type: 'Tempo / Pickup Truck (Tata Yodha, Bolero Pickup, etc.)', registrationNumber: 'DL03EF9012', location: 'Delhi NCR', fuelLevel: 90, fastagBalance: 2500, status: 'idle', imageUrl: 'https://picsum.photos/seed/boleromaxx/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV003/200/300', dataAiHint: 'pickup truck urban', lastUpdated: '10 mins ago' },
+  { id: 'V001', name: 'Tata Ace Gold', registrationNumber: 'MH12AB1234', location: 'Mumbai, MH', fuelLevel: 75, fastagBalance: 1250, status: 'idle', imageUrl: 'https://picsum.photos/seed/tataacegold/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV001/200/300', dataAiHint: 'mini truck city', lastUpdated: '2 mins ago' },
+  { id: 'V002', name: 'Ashok Leyland Dost+', registrationNumber: 'KA01CD5678', location: 'En route to Pune', fuelLevel: 40, fastagBalance: 800, status: 'in_transit', imageUrl: 'https://picsum.photos/seed/leylanddostplus/400/250', dataAiHint: 'light truck highway', lastUpdated: 'Now' },
+  { id: 'V003', name: 'Mahindra Bolero Maxx', registrationNumber: 'DL03EF9012', location: 'Delhi NCR', fuelLevel: 90, fastagBalance: 2500, status: 'idle', imageUrl: 'https://picsum.photos/seed/boleromaxx/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV003/200/300', dataAiHint: 'pickup truck urban', lastUpdated: '10 mins ago' },
 ];
 
 const vehicleRegistrationSchema = z.object({
   name: z.string().min(3, "Vehicle name must be at least 3 characters"),
-  type: z.string().refine(val => VEHICLE_TYPES.includes(val as BookingVehicleType), {
-    message: "Please select a valid vehicle type."
-  }),
+  // type: z.string().refine(val => VEHICLE_TYPES.includes(val as BookingVehicleType), { // Removed type
+  //   message: "Please select a valid vehicle type."
+  // }),
   registrationNumber: z.string().min(6, "Registration number is required (e.g., MH01AB1234)")
-    // Basic regex for Indian vehicle registration, can be improved
     .regex(/^[A-Z]{2}[0-9]{1,2}(?:[A-Z])?(?:[A-Z]*)?[0-9]{4}$/, "Invalid registration number format. E.g., MH01AB1234, DL1C1234, KA05N9876"),
 });
 type VehicleRegistrationFormInputs = z.infer<typeof vehicleRegistrationSchema>;
@@ -58,7 +58,7 @@ export default function TransportOwnerDashboardPage() {
   useAuthRedirect({ requireAuth: true, requireRole: 'transport_owner' });
   
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialMockVehicles);
-  const [loading, setLoading] = useState(false); // For data refresh, not initial load now
+  const [loading, setLoading] = useState(false); 
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [vehicleImageFile, setVehicleImageFile] = useState<File | null>(null);
   const [rcBookFile, setRcBookFile] = useState<File | null>(null);
@@ -78,7 +78,7 @@ export default function TransportOwnerDashboardPage() {
   const fetchVehicleData = () => {
     setLoading(true);
     setTimeout(() => {
-      const updatedVehicles = vehicles.map(v => ({ // Update existing vehicles rather than re-initializing from mock.
+      const updatedVehicles = vehicles.map(v => ({ 
         ...v,
         fuelLevel: Math.max(10, Math.min(100, v.fuelLevel + Math.floor(Math.random() * 20) - 10)),
         fastagBalance: Math.max(100, v.fastagBalance + Math.floor(Math.random() * 500) - 250),
@@ -94,8 +94,6 @@ export default function TransportOwnerDashboardPage() {
     }, 1000);
   }
 
-  // No initial fetchVehicleData in useEffect as we use initialMockVehicles.
-  // User can refresh manually.
 
   const getStatusColor = (status: Vehicle['status']) => {
     switch (status) {
@@ -115,7 +113,7 @@ export default function TransportOwnerDashboardPage() {
   };
 
   const onRegisterVehicleSubmit: SubmitHandler<VehicleRegistrationFormInputs> = async (data) => {
-    let vehicleImageUrl = 'https://picsum.photos/seed/newvehicle/400/250'; // Default mock
+    let vehicleImageUrl = 'https://picsum.photos/seed/newvehicle/400/250'; 
     let rcBookMockUrl = undefined;
 
     if (vehicleImageFile) {
@@ -138,15 +136,15 @@ export default function TransportOwnerDashboardPage() {
     const newVehicle: Vehicle = {
       id: `V${String(vehicles.length + 1).padStart(3, '0')}`,
       name: data.name,
-      type: data.type as BookingVehicleType,
+      // type: data.type as BookingVehicleType, // Removed type
       registrationNumber: data.registrationNumber.toUpperCase(),
-      location: 'Garage (New)', // Default location
-      fuelLevel: 100, // Default fuel
-      fastagBalance: 1000, // Default balance
+      location: 'Garage (New)', 
+      fuelLevel: 100, 
+      fastagBalance: 1000, 
       status: 'idle',
       imageUrl: vehicleImageUrl,
       rcBookUrl: rcBookMockUrl,
-      dataAiHint: `${data.type.toLowerCase().split(' ')[0]} vehicle`,
+      dataAiHint: `generic vehicle`, // Updated dataAiHint
       lastUpdated: 'Now',
     };
 
@@ -229,7 +227,7 @@ export default function TransportOwnerDashboardPage() {
                 <Input id="name" {...register('name')} placeholder="e.g., Tata Ace Gold BS6" />
                 {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
               </div>
-              <div>
+              {/* <div> // Vehicle Type Select Removed
                 <Label htmlFor="type">Vehicle Type</Label>
                 <Controller
                     name="type"
@@ -244,7 +242,7 @@ export default function TransportOwnerDashboardPage() {
                     )}
                 />
                 {errors.type && <p className="text-sm text-destructive mt-1">{errors.type.message}</p>}
-              </div>
+              </div> */}
               <div>
                 <Label htmlFor="registrationNumber">Registration Number</Label>
                 <Input id="registrationNumber" {...register('registrationNumber')} placeholder="e.g., MH01AB1234" />
@@ -313,7 +311,10 @@ export default function TransportOwnerDashboardPage() {
             </div>
             <CardHeader className="pb-3">
               <CardTitle className="text-xl truncate" title={vehicle.name}>{vehicle.name}</CardTitle>
-              <CardDescription className="text-sm">{vehicle.type} - {vehicle.registrationNumber}</CardDescription>
+              <CardDescription className="text-sm">
+                {/* {vehicle.type} -  // Removed type display */}
+                 {vehicle.registrationNumber}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 flex-grow">
               <div className="flex items-center justify-between text-sm">
@@ -346,7 +347,6 @@ export default function TransportOwnerDashboardPage() {
                         className="p-0 h-auto text-indigo-600 hover:text-indigo-800"
                         onClick={() => {
                             toast({title: "View RC Book (Mock)", description: `Displaying RC book for ${vehicle.name}. Mock URL: ${vehicle.rcBookUrl}`});
-                            // In a real app, open vehicle.rcBookUrl in a new tab or modal
                             window.open(vehicle.rcBookUrl, '_blank');
                         }}
                     >

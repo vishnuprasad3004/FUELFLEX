@@ -1,12 +1,12 @@
+
 // This is a server-side code.
 'use server';
 /**
  * @fileOverview An AI-powered pricing model that dynamically adjusts transport costs for India.
  * Leverages Google Distance Matrix API for accurate distance and travel time.
- * Considers vehicle type in its estimation.
  * Provides a fallback calculation if the AI model or distance service fails.
  *
- * - calculatePrice - A function that calculates the price based on distance, load, vehicle type, and fuel rates. Uses AI first, then fallback.
+ * - calculatePrice - A function that calculates the price based on distance, load, and fuel rates. Uses AI first, then fallback.
  * - CalculatePriceInput - The input type for the calculatePrice function.
  * - CalculatePriceOutput - The return type for the calculatePrice function.
  */
@@ -15,7 +15,6 @@ import {ai} from '@/ai/ai-instance';
 import {z} from 'genkit';
 import {getFuelPrice, type FuelPrice} from '@/services/fuel-price';
 import {getDistance, type Distance} from '@/services/distance';
-import type { VehicleType } from '@/models/booking'; // Import VehicleType
 
 const CalculatePriceInputSchema = z.object({
   pickupLatitude: z.number().describe('The latitude of the pickup location.'),
@@ -23,7 +22,7 @@ const CalculatePriceInputSchema = z.object({
   destinationLatitude: z.number().describe('The latitude of the destination location.'),
   destinationLongitude: z.number().describe('The longitude of the destination location.'),
   loadWeightKg: z.number().describe('The weight of the load in kilograms.'),
-  vehicleType: z.string().describe('The type of vehicle selected for transport (e.g., "Mini Truck", "Container Truck").'), // Added vehicleType
+  // vehicleType: z.string().describe('The type of vehicle selected for transport (e.g., "Mini Truck", "Container Truck").'), // Removed vehicleType
 });
 export type CalculatePriceInput = z.infer<typeof CalculatePriceInputSchema>;
 
@@ -41,7 +40,7 @@ const CalculatePriceOutputSchema = z.object({
 export type CalculatePriceOutput = z.infer<typeof CalculatePriceOutputSchema>;
 
 // Define the fallback rate per kilometer
-const FALLBACK_RATE_PER_KM = 150; // INR
+const FALLBACK_RATE_PER_KM = 100; // INR
 
 export async function calculatePrice(input: CalculatePriceInput): Promise<CalculatePriceOutput> {
   if (
@@ -51,14 +50,14 @@ export async function calculatePrice(input: CalculatePriceInput): Promise<Calcul
     typeof input.destinationLatitude !== 'number' ||
     typeof input.destinationLongitude !== 'number' ||
     typeof input.loadWeightKg !== 'number' ||
-    input.loadWeightKg <= 0 ||
-    typeof input.vehicleType !== 'string' || // Added validation for vehicleType
-    input.vehicleType.trim() === ''
+    input.loadWeightKg <= 0
+    // typeof input.vehicleType !== 'string' || // Removed validation for vehicleType
+    // input.vehicleType.trim() === ''
   ) {
     console.error('[CalculatePriceFlow] Invalid input received:', input);
     return {
       estimatedPrice: 0,
-      breakdown: "Error: Invalid input provided. Please check pickup/destination coordinates, load weight, and vehicle type.",
+      breakdown: "Error: Invalid input provided. Please check pickup/destination coordinates and load weight.",
       currency: "INR",
     };
   }
@@ -73,7 +72,7 @@ const pricingPrompt = ai.definePrompt({
       distanceKm: z.number().describe('The road distance in kilometers between the pickup and destination.'),
       travelTimeHours: z.number().describe('Estimated road travel time in hours.'),
       loadWeightKg: z.number().describe('The weight of the load in kilograms.'),
-      vehicleType: z.string().describe('The type of vehicle selected (e.g., "Mini Truck", "Tempo", "Container Truck").'), // Added vehicleType to prompt input schema
+      // vehicleType: z.string().describe('The type of vehicle selected (e.g., "Mini Truck", "Tempo", "Container Truck").'), // Removed vehicleType from prompt input schema
       fuelInfo: z.object({
         price: z.number(),
         currency: z.string(),
@@ -87,7 +86,7 @@ const pricingPrompt = ai.definePrompt({
       estimatedPrice: z
         .number()
         .describe('The estimated price for the transport, in INR.'),
-      breakdown: z.string().describe('A detailed breakdown of the price calculation in INR. Explain each component like fuel cost, driver wages, maintenance, tolls (if applicable), and profit margin. Reference the provided distance, duration text, and vehicle type if available.'),
+      breakdown: z.string().describe('A detailed breakdown of the price calculation in INR. Explain each component like fuel cost, driver wages, maintenance, tolls (if applicable), and profit margin. Reference the provided distance and duration text if available.'),
        currency: z.string().describe('The currency code (should be INR).').default('INR'),
     }),
   },
@@ -99,47 +98,33 @@ const pricingPrompt = ai.definePrompt({
   - Road Distance: {{distanceKm}} km ({{distanceText}})
   - Estimated Road Travel Time: {{travelTimeHours}} hours ({{durationText}})
   - Load Weight: {{loadWeightKg}} kg
-  - Vehicle Type: {{vehicleType}}
   - Current Fuel Price: {{fuelInfo.price}} {{fuelInfo.currency}} per liter
 
   Cost Factors to Consider (Use reasonable assumptions for the Indian market):
-  1.  **Fuel Cost:** Assume an average truck fuel efficiency (e.g., a Mini Truck might get 10-15 km/l, while a Large Truck gets 3-5 km/l). This efficiency is significantly affected by vehicle type and load weight. Calculate total fuel needed and its cost based on the road distance.
-  2.  **Driver Wages:** Estimate driver cost based on travel time and vehicle type (e.g., INR per hour, potentially higher for larger vehicles). Consider potential overtime or night charges if applicable based on travel time.
-  3.  **Vehicle Maintenance:** Include a per-kilometer charge for wear and tear (e.g., INR per km) based on road distance and vehicle type (larger vehicles typically have higher maintenance costs).
-  4.  **Tolls & Taxes:** Briefly mention that tolls and state taxes will apply based on the route and vehicle type. You don't need to calculate them precisely, but acknowledge their impact.
+  1.  **Fuel Cost:** Assume an average truck fuel efficiency (e.g., generic truck might get 5-10 km/l). This efficiency is affected by load weight. Calculate total fuel needed and its cost based on the road distance.
+  2.  **Driver Wages:** Estimate driver cost based on travel time (e.g., INR per hour). Consider potential overtime or night charges if applicable based on travel time.
+  3.  **Vehicle Maintenance:** Include a per-kilometer charge for wear and tear (e.g., INR per km) based on road distance.
+  4.  **Tolls & Taxes:** Briefly mention that tolls and state taxes will apply based on the route. You don't need to calculate them precisely, but acknowledge their impact.
   5.  **Profit Margin:** Add a reasonable profit margin (e.g., 15-25%) to the total operational cost.
-  6.  **Load Weight & Vehicle Impact:** Heavier loads decrease fuel efficiency and increase wear. The type of vehicle (e.g., "Mini Truck", "Tempo", "Container Truck") significantly influences base operating costs, fuel efficiency, and toll charges. Factor this in.
+  6.  **Load Weight Impact:** Heavier loads decrease fuel efficiency and increase wear. Factor this in.
 
   Output Requirements:
   - Return the final estimated price rounded to the nearest whole Rupee.
   - Ensure the currency is explicitly stated as INR in the breakdown.
-  - Provide a clear, itemized breakdown explaining how you arrived at the final price, referencing the input details (especially road distance, travel time, and vehicle type) and your assumed rates for the factors above.
+  - Provide a clear, itemized breakdown explaining how you arrived at the final price, referencing the input details (especially road distance and travel time) and your assumed rates for the factors above.
   `,
 });
 
-const calculateFallbackPrice = (distanceInfo: Distance | { distanceKm: number }, vehicleType?: VehicleType | string): CalculatePriceOutput => {
-    // Adjust fallback rate based on vehicle type if desired, for now, it's a flat rate.
-    // Example: A more sophisticated fallback might have different rates for different vehicle categories.
+const calculateFallbackPrice = (distanceInfo: Distance | { distanceKm: number }): CalculatePriceOutput => {
     const baseFallbackRate = FALLBACK_RATE_PER_KM;
-    let adjustedFallbackRate = baseFallbackRate;
-
-    if (vehicleType) {
-        if (vehicleType.toLowerCase().includes('large') || vehicleType.toLowerCase().includes('heavy') || vehicleType.toLowerCase().includes('container')) {
-            adjustedFallbackRate = baseFallbackRate * 1.5; // Example: 50% higher for large vehicles
-        } else if (vehicleType.toLowerCase().includes('medium')) {
-            adjustedFallbackRate = baseFallbackRate * 1.2; // Example: 20% higher for medium
-        }
-    }
-
-    const fallbackPrice = distanceInfo.distanceKm * adjustedFallbackRate;
+    const fallbackPrice = distanceInfo.distanceKm * baseFallbackRate;
     const roundedFallbackPrice = Math.round(fallbackPrice);
     const distanceText = 'distanceText' in distanceInfo && distanceInfo.distanceText ? `(${distanceInfo.distanceText})` : `(${distanceInfo.distanceKm.toFixed(2)} km)`;
-    const vehicleInfoText = vehicleType ? ` for vehicle type: ${vehicleType}` : '';
 
-    console.log(`[CalculatePriceFlow] Using fallback rate: ${distanceInfo.distanceKm.toFixed(2)} km * ${adjustedFallbackRate} INR/km${vehicleInfoText} = ${roundedFallbackPrice} INR`);
+    console.log(`[CalculatePriceFlow] Using fallback rate: ${distanceInfo.distanceKm.toFixed(2)} km * ${baseFallbackRate} INR/km = ${roundedFallbackPrice} INR`);
     return {
       estimatedPrice: roundedFallbackPrice,
-      breakdown: `AI estimation failed or is unavailable (check Genkit API key/configuration). Using fallback rate of ${adjustedFallbackRate} INR/km${vehicleInfoText}. Total road distance: ${distanceInfo.distanceKm.toFixed(2)} km ${distanceText}.`,
+      breakdown: `AI estimation failed or is unavailable (check Genkit API key/configuration). Using fallback rate of ${baseFallbackRate} INR/km. Total road distance: ${distanceInfo.distanceKm.toFixed(2)} km ${distanceText}.`,
       currency: 'INR',
       distanceKm: distanceInfo.distanceKm,
       travelTimeHours: 'travelTimeHours' in distanceInfo ? distanceInfo.travelTimeHours : undefined,
@@ -156,7 +141,7 @@ const calculatePriceFlow = ai.defineFlow<
   inputSchema: CalculatePriceInputSchema,
   outputSchema: CalculatePriceOutputSchema,
 }, async (input): Promise<CalculatePriceOutput> => {
-  const {pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude, loadWeightKg, vehicleType} = input; // Added vehicleType
+  const {pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude, loadWeightKg } = input; // Removed vehicleType
   console.log('[CalculatePriceFlow] Starting flow execution.');
 
   let fuelInfo: FuelPrice;
@@ -204,7 +189,7 @@ const calculatePriceFlow = ai.defineFlow<
     distanceKm: distanceInfo.distanceKm,
     travelTimeHours: distanceInfo.travelTimeHours,
     loadWeightKg: loadWeightKg,
-    vehicleType: vehicleType, // Pass vehicleType to prompt
+    // vehicleType: vehicleType, // Removed vehicleType from prompt
     fuelInfo: {
       price: fuelInfo.price,
       currency: fuelInfo.currency,
@@ -221,7 +206,7 @@ const calculatePriceFlow = ai.defineFlow<
 
       if (!output || typeof output.estimatedPrice !== 'number' || output.estimatedPrice <= 0 || typeof output.breakdown !== 'string' || !output.breakdown.trim()) {
           console.warn("[CalculatePriceFlow] AI response format invalid, missing required fields, or price <= 0:", output);
-          return calculateFallbackPrice(distanceInfo, vehicleType);
+          return calculateFallbackPrice(distanceInfo);
       }
 
        const roundedPrice = Math.round(output.estimatedPrice);
@@ -247,15 +232,14 @@ const calculatePriceFlow = ai.defineFlow<
 
        if (isGenkitApiKeyError) {
          console.warn("[CalculatePriceFlow] Genkit/Google AI API Key error detected. Using fallback calculation.");
-         const fallbackResult = calculateFallbackPrice(distanceInfo, vehicleType);
+         const fallbackResult = calculateFallbackPrice(distanceInfo);
          fallbackResult.breakdown = `AI configuration error (GOOGLE_GENAI_API_KEY). Using fallback rate. Original AI error: ${aiErrorMessage}. Total road distance: ${distanceInfo.distanceKm.toFixed(2)} km.`;
          return fallbackResult;
        } else {
          console.warn("[CalculatePriceFlow] Non-API key AI error occurred. Using fallback calculation.");
-         const fallbackResult = calculateFallbackPrice(distanceInfo, vehicleType);
-         fallbackResult.breakdown = `AI estimation failed (${aiErrorMessage}). Using fallback rate of ${FALLBACK_RATE_PER_KM} INR/km for ${vehicleType}. Total road distance: ${distanceInfo.distanceKm.toFixed(2)} km ${distanceInfo.distanceText ? `(${distanceInfo.distanceText})` : ''}.`;
+         const fallbackResult = calculateFallbackPrice(distanceInfo);
+         fallbackResult.breakdown = `AI estimation failed (${aiErrorMessage}). Using fallback rate of ${FALLBACK_RATE_PER_KM} INR/km. Total road distance: ${distanceInfo.distanceKm.toFixed(2)} km ${distanceInfo.distanceText ? `(${distanceInfo.distanceText})` : ''}.`;
          return fallbackResult;
        }
   }
 });
-

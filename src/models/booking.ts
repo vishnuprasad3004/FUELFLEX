@@ -1,6 +1,5 @@
 
 import type { Timestamp } from 'firebase/firestore';
-import type { VehicleType } from './goods'; // Assuming VehicleType might be shared or defined elsewhere if not specific to goods
 
 export enum BookingStatus {
   PENDING = 'pending', // Buyer has requested booking, awaiting seller/admin confirmation
@@ -32,20 +31,20 @@ export interface ActionLogEntry {
   details?: Record<string, any>;
 }
 
-export const VEHICLE_TYPES = [
-  "Mini Truck (Tata Ace, Mahindra Jeeto, etc.)",
-  "Tempo / Pickup Truck (Tata Yodha, Bolero Pickup, etc.)",
-  "Light Commercial Vehicle (LCV) (Tata 407, Eicher Pro 2000, etc.)",
-  "Medium Duty Truck (10-16 Ton)",
-  "Heavy Duty Truck (18-28 Ton, Multi-Axle)",
-  "Container Truck (20ft, 40ft)",
-  "Tanker",
-  "Van / Tempo Traveller",
-  "2-Wheeler (for small parcels)",
-  "Other",
-] as const;
-
-export type BookingVehicleType = typeof VEHICLE_TYPES[number];
+// Removing VEHICLE_TYPES and BookingVehicleType as per request
+// export const VEHICLE_TYPES = [
+//   "Mini Truck (Tata Ace, Mahindra Jeeto, etc.)",
+//   "Tempo / Pickup Truck (Tata Yodha, Bolero Pickup, etc.)",
+//   "Light Commercial Vehicle (LCV) (Tata 407, Eicher Pro 2000, etc.)",
+//   "Medium Duty Truck (10-16 Ton)",
+//   "Heavy Duty Truck (18-28 Ton, Multi-Axle)",
+//   "Container Truck (20ft, 40ft)",
+//   "Tanker",
+//   "Van / Tempo Traveller",
+//   "2-Wheeler (for small parcels)",
+//   "Other",
+// ] as const;
+// export type BookingVehicleType = typeof VEHICLE_TYPES[number];
 
 
 export interface Booking {
@@ -57,8 +56,8 @@ export interface Booking {
   // Pickup location 
   pickupLocation: { 
     address: string;
-    latitude?: number | null; // Made optional as it might be geocoded later
-    longitude?: number | null; // Made optional
+    latitude?: number | null; 
+    longitude?: number | null; 
   };
   
   // Drop-off location specified by the buyer
@@ -71,7 +70,7 @@ export interface Booking {
   goodsType: string; 
   weightKg: number; 
 
-  vehicleType: BookingVehicleType; 
+  // vehicleType: BookingVehicleType; // Removed vehicleType
   preferredPickupDate?: Timestamp | Date | null; 
 
   status: BookingStatus;
@@ -110,7 +109,7 @@ const exampleMarketplaceBooking: Booking = {
   buyerId: 'buyerFirebaseUid123',
   goodsId: 'firestoreDocIdGood123', 
   sellerId: 'sellerFirebaseUid789', 
-  pickupLocation: { // This would be populated from goodData or entered manually
+  pickupLocation: { 
      address: "Ratnagiri Farm, Maharashtra",
      latitude: 16.9944,
      longitude: 73.3000
@@ -120,9 +119,9 @@ const exampleMarketplaceBooking: Booking = {
     latitude: 18.5204,
     longitude: 73.8567,
   },
-  goodsType: "Fresh Mangoes (Box of 12)", // Could be derived from good or entered
-  weightKg: 5, // Could be derived or entered
-  vehicleType: 'Mini Truck (Tata Ace, Mahindra Jeeto, etc.)',
+  goodsType: "Fresh Mangoes (Box of 12)", 
+  weightKg: 5, 
+  // vehicleType: 'Mini Truck (Tata Ace, Mahindra Jeeto, etc.)', // Removed
   preferredPickupDate: new Date('2024-09-20T14:00:00Z'),
   status: BookingStatus.PENDING,
   estimatedTransportCost: 850,
@@ -134,4 +133,3 @@ const exampleMarketplaceBooking: Booking = {
   ],
 };
 */
-

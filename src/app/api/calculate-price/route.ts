@@ -1,8 +1,9 @@
+
 // src/app/api/calculate-price/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { calculatePrice, CalculatePriceInputSchema as ServerCalculatePriceInputSchema, type CalculatePriceInput, type CalculatePriceOutput } from '@/ai/flows/ai-powered-pricing';
 import { z } from 'zod';
-import { VEHICLE_TYPES } from '@/models/booking';
+// import { VEHICLE_TYPES } from '@/models/booking'; // No longer needed as vehicleType is removed
 
 
 // Ensure the API route's schema matches the flow's input schema, especially for vehicleType
@@ -12,9 +13,9 @@ const ApiCalculatePriceInputSchema = ServerCalculatePriceInputSchema.extend({
   destinationLatitude: z.number(),
   destinationLongitude: z.number(),
   loadWeightKg: z.number(),
-  vehicleType: z.string().refine(val => VEHICLE_TYPES.includes(val as any), { // Or use a more generic string() if VEHICLE_TYPES is too restrictive for API flexibility
-    message: `Invalid vehicle type. Must be one of: ${VEHICLE_TYPES.join(', ')}`
-  }),
+  // vehicleType: z.string().refine(val => VEHICLE_TYPES.includes(val as any), { // Removed vehicleType
+  //   message: `Invalid vehicle type. Must be one of: ${VEHICLE_TYPES.join(', ')}`
+  // }),
 });
 
 
@@ -101,4 +102,3 @@ export async function GET() {
     schema: ApiCalculatePriceInputSchema.shape, // Provide the expected input schema shape
   });
 }
-

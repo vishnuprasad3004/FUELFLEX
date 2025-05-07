@@ -1,3 +1,4 @@
+
 // This MUST be the very first line
 'use client'; 
 
@@ -11,12 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { collection, query, onSnapshot, orderBy, limit, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot, where } from 'firebase/firestore';
 import { firestore } from '@/firebase/firebase-config';
-import type { Booking } from '@/models/booking'; // RepaymentStatus is implicitly available
-import { BookingStatus, RepaymentStatus } from '@/models/booking'; // Import BookingStatus and RepaymentStatus
-import type { UserProfile } from '@/models/user'; // UserRole is implicitly available via UserRoleEnum
+import type { Booking } from '@/models/booking'; 
+import { BookingStatus, RepaymentStatus } from '@/models/booking'; 
+import type { UserProfile } from '@/models/user'; 
 import { UserRole as UserRoleEnum } from '@/models/user'; 
 import { format } from 'date-fns';
-import { ArrowUpDown, FilterIcon, Eye, Edit3, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud, PlusCircle, Loader2 } from 'lucide-react'; // Added PlusCircle, Loader2
+import { ArrowUpDown, FilterIcon, Eye, Edit3, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud, PlusCircle, Loader2 } from 'lucide-react'; 
 import { Separator } from '@/components/ui/separator'; 
 import { useToast } from "@/components/ui/use-toast";
 import { uploadFile as uploadFileToStorage, getFileUrl as getFileUrlFromStorage, listFilesAndFolders as listItemsFromStorage } from '@/services/storage-service';
@@ -76,24 +77,18 @@ export default function AdminDashboardPage() {
       toast({ title: "Firestore Error", description: "Database service is not available. Check Firebase connection.", variant: "destructive" });
       setLoadingBookings(false);
       setBookingHasMore(false);
-      return () => {}; // Return a no-op function for unsubscribe
+      return () => {}; 
     }
     try {
       let q = query(collection(firestore, 'bookings'));
 
-       // Add filters - Firestore requires specific indexing for multiple inequality/orderBy filters
       if (bookingStatusFilter !== 'all') {
         q = query(q, where('status', '==', bookingStatusFilter));
       }
       if (repaymentStatusFilter !== 'all') {
         q = query(q, where('repayStatus', '==', repaymentStatusFilter));
       }
-      // Note: Complex filtering (like combining status with ID search) might need client-side filtering or more specific backend logic.
-      // For now, ID and driverId filters are applied client-side.
 
-      // Apply sorting. If filtering, ensure the first orderBy matches a filter field if needed by Firestore.
-      // For simplicity, we assume 'createdAt' or 'estimatedTransportCost' can be sorted after 'status' or 'repayStatus' if those are filtered.
-      // This may require composite indexes in Firestore.
       q = query(q, orderBy(bookingSortColumn, bookingSortDirection));
 
 
@@ -118,11 +113,10 @@ export default function AdminDashboardPage() {
             setBookingLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
             setBookingFirstVisible(querySnapshot.docs[0]);
         } else {
-            if (direction === 'first') { // Initial load and no data
+            if (direction === 'first') { 
                 setBookingLastVisible(null);
                 setBookingFirstVisible(null);
             }
-            // If not first load and no docs, setBookingHasMore correctly handles button state.
         }
         setLoadingBookings(false);
       }, (error) => {
@@ -220,14 +214,12 @@ export default function AdminDashboardPage() {
     let tempBookings = [...bookings];
     if (tripIdFilter) tempBookings = tempBookings.filter(b => b.bookingId && b.bookingId.toLowerCase().includes(tripIdFilter.toLowerCase()));
     if (driverIdFilter) tempBookings = tempBookings.filter(b => b.driverId?.toLowerCase().includes(driverIdFilter.toLowerCase()));
-    // Status and RepaymentStatus filters are now applied in the Firestore query
     setFilteredBookings(tempBookings);
   }, [bookings, tripIdFilter, driverIdFilter]);
 
   useEffect(() => {
     let tempUsers = [...users];
     if (userEmailFilter) tempUsers = tempUsers.filter(u => u.email?.toLowerCase().includes(userEmailFilter.toLowerCase()));
-    // Role filter is now applied in Firestore query
     setFilteredUsers(tempUsers);
   }, [users, userEmailFilter]);
 
@@ -236,14 +228,12 @@ export default function AdminDashboardPage() {
     setBookingSortDirection(prev => bookingSortColumn === column && prev === 'asc' ? 'desc' : 'asc');
     setBookingSortColumn(column); 
     setBookingCurrentPage(1); setBookingLastVisible(null); setBookingFirstVisible(null);
-    // fetchBookings will be called by the useEffect dependency change
   };
 
   const handleUserSort = (column: keyof UserProfile | 'createdAt') => {
     setUserSortDirection(prev => userSortColumn === column && prev === 'asc' ? 'desc' : 'asc');
     setUserSortColumn(column); 
     setUserCurrentPage(1); setUserLastVisible(null); setUserFirstVisible(null);
-    // fetchUsers will be called by the useEffect dependency change
   };
 
   const handleBookingNextPage = () => {
@@ -254,7 +244,7 @@ export default function AdminDashboardPage() {
     }
   };
   const handleBookingPrevPage = () => {
-    if (bookingCurrentPage > 1 && !loadingBookings) { // bookingFirstVisible check is implicit in currentPage > 1
+    if (bookingCurrentPage > 1 && !loadingBookings) { 
       setBookingCurrentPage(prev => prev - 1); fetchBookings('prev');
     }
   };
@@ -362,7 +352,7 @@ export default function AdminDashboardPage() {
                   <TableRow>
                     <TableHead onClick={() => handleBookingSort('bookingId')} className="cursor-pointer">Trip ID <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
                     <TableHead>Goods Type</TableHead>
-                    <TableHead>Vehicle</TableHead>
+                    {/* <TableHead>Vehicle</TableHead> // Removed Vehicle Column */}
                     <TableHead onClick={() => handleBookingSort('estimatedTransportCost')} className="cursor-pointer">Est. Cost <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
                     <TableHead onClick={() => handleBookingSort('status')} className="cursor-pointer">Status <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
                      <TableHead onClick={() => handleBookingSort('repayStatus')} className="cursor-pointer">Repayment <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
@@ -375,7 +365,7 @@ export default function AdminDashboardPage() {
                     <TableRow key={booking.bookingId}>
                       <TableCell className="font-medium">{booking.bookingId ? booking.bookingId.substring(0,8) + '...' : 'N/A'}</TableCell>
                       <TableCell>{(booking as any).goodsType || 'N/A'}</TableCell>
-                      <TableCell>{booking.vehicleType || 'N/A'}</TableCell>
+                      {/* <TableCell>{booking.vehicleType || 'N/A'}</TableCell> // Removed Vehicle Cell */}
                       <TableCell>₹{booking.estimatedTransportCost?.toLocaleString() || 'N/A'}</TableCell>
                       <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap 
                         ${booking.status === BookingStatus.COMPLETED ? 'bg-green-100 text-green-700' : 
