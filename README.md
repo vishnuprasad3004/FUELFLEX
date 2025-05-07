@@ -72,9 +72,9 @@ If you encounter errors like `auth/api-key-not-valid`, `GOOGLE_GENAI_API_KEY` is
     *   Select your project.
     *   Go to **Project settings** (click the gear icon).
     *   Under the **General** tab, scroll down to **Your apps**.
-    *   If you have a Web app, click on it. If not, add one.
-    *   Under **SDK setup and configuration**, select **Config**. You will find `apiKey`, `authDomain`, `projectId`, etc. These are the values you need.
-    *   Ensure these values in your `.env` file match **exactly** what is shown in the Firebase console for your intended project.
+    *   If you have a Web app, click on it. If not, add one (Platform: Web).
+    *   Under **SDK setup and configuration**, select **Config**. You will find `apiKey`, `authDomain`, `projectId`, etc. These are the values you need for your `.env` file.
+    *   Ensure these values in your `.env` file match **exactly** what is shown in the Firebase console for your intended project. The `apiKey` from this section is what you should use for `NEXT_PUBLIC_FIREBASE_API_KEY`.
 5.  **Enabled APIs/Services:**
     *   **Firebase:** Ensure Firebase Authentication (with Email/Password sign-in method enabled), Firestore, and Cloud Storage are enabled in your Firebase project.
     *   **Google AI (Genkit):** Ensure the Generative Language API (or Vertex AI, depending on your chosen model) is enabled in Google Cloud Console for the project linked to your `GOOGLE_GENAI_API_KEY`.
@@ -99,8 +99,9 @@ GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 
 # Firebase configuration
 # Get these from your Firebase project settings:
-# Project settings > General > Your apps > Web app > SDK setup and configuration (select 'Config')
-# CRITICAL: Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your Firebase project.
+# Project settings (gear icon) > General tab > Scroll to "Your apps" > Select your Web app
+# Then, under "SDK setup and configuration", choose the 'Config' option.
+# CRITICAL: Ensure NEXT_PUBLIC_FIREBASE_API_KEY is the 'apiKey' value from this 'Config' section.
 # This is the most common cause of 'auth/api-key-not-valid' errors.
 NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY_HERE
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN_HERE

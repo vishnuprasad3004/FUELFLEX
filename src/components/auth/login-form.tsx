@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -62,6 +63,7 @@ export default function LoginForm() {
           errorMessage = "This user account has been disabled. Please contact support.";
           break;
         case 'auth/api-key-not-valid':
+        case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.': // Handle variations of the error code
           errorMessage = "CRITICAL CONFIG ERROR: Firebase API key is invalid. This app cannot connect to Firebase. Please ensure 'NEXT_PUBLIC_FIREBASE_API_KEY' in your .env file is correct and matches the Web API Key from your Firebase project settings (General > Your apps > SDK setup and configuration). Restart your server after fixing. See README.md for detailed setup instructions.";
           break;
         default:
