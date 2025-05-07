@@ -30,9 +30,11 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
 
     // Redirect if authenticated (e.g., from login/register page to a dashboard)
     if (options.redirectIfAuthenticated && currentUser) {
+      // With bypass, this ensures that if we are on login/create-account while "mock-logged-in", we still redirect.
       if (DEVELOPMENT_BYPASS_AUTH_REDIRECT) {
-        // With bypass, this ensures that if we are on login/create-account while "mock-logged-in", we still redirect.
+        // The role-based redirection logic below will handle it for bypassed users.
       }
+      
       if (isAdmin) router.push('/admin/dashboard');
       else if (isTransportOwner) router.push('/transport-owner/dashboard');
       else if (isBuyerSeller) router.push('/marketplace');
@@ -40,8 +42,9 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
       return;
     }
 
-    // If bypass is active, skip further auth/role checks
-    if (DEVELOPMENT_BYPASS_AUTH_REDIRECT) {
+    // If bypass is active, skip further auth/role checks for pages that *require* auth or specific roles,
+    // as the mock user is already set up.
+    if (DEVELOPMENT_BYPASS_AUTH_REDIRECT && (options.requireAuth || options.requireRole)) {
         // console.warn("useAuthRedirect: Auth checks (requireAuth, requireRole) potentially bypassed due to DEVELOPMENT_BYPASS_AUTH_REDIRECT.");
         return; 
     }

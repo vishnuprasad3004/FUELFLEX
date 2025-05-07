@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
 const DEVELOPMENT_BYPASS_AUTH = true; 
-const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.TRANSPORT_OWNER, UserRole.BUYER_SELLER)
+const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.TRANSPORT_OWNER; // Change to test other roles (UserRole.ADMIN, UserRole.BUYER_SELLER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
