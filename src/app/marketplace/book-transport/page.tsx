@@ -262,7 +262,7 @@ export default function BookTransportPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         actionLogs: [{
-          timestamp: serverTimestamp(),
+          timestamp: new Date(), // Use client-side timestamp for array elements
           actorId: currentUser.uid,
           actionDescription: 'Booking created by buyer.',
         }],
