@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Truck, Package, IndianRupee, Clock, Search, ThumbsUp, ShieldCheck, Cpu, AppleIcon, TvIcon, ShirtIcon, SofaIcon, ShoppingBasket, PlusCircle } from "lucide-react";
+import { ArrowRight, Truck, Package, IndianRupee, Clock, Search, ThumbsUp, ShieldCheck, Cpu, ShoppingBasket, SofaIcon, ShirtIcon, PlusCircle } from "lucide-react";
 import Image from 'next/image';
-import { useAuthRedirect } from '@/hooks/use-auth-redirect'; // For potential redirection if user is logged in
+import { useAuthRedirect } from '@/hooks/use-auth-redirect'; 
 import { useAuth } from '@/components/auth/auth-provider';
 
 const categories = [
@@ -44,7 +44,7 @@ export default function Home() {
               </Button>
             </Link>
             <Link href="/marketplace" passHref legacyBehavior>
-              <Button size="lg" variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 shadow-lg">
+              <Button size="lg" variant="secondary" className="shadow-lg">
                 Browse Goods <Search className="ml-2 h-5 w-5" />
               </Button>
             </Link>
