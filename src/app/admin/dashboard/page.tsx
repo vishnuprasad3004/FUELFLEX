@@ -15,12 +15,11 @@ import type { Booking, BookingStatus, RepaymentStatus } from '@/models/booking';
 import type { UserProfile, UserRole } from '@/models/user'; // Import UserProfile and UserRole
 import { UserRole as UserRoleEnum } from '@/models/user'; // Import UserRole enum for filter
 import { format } from 'date-fns';
-import { ArrowUpDown, Download, FilterIcon, Eye, Edit3, Trash2, ChevronLeft, ChevronRight, RefreshCw, Users } from 'lucide-react';
+import { ArrowUpDown, Download, FilterIcon, Eye, Edit3, Trash2, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud } from 'lucide-react';
 import { Separator } from '@/components/ui/separator'; 
 import { useToast } from "@/components/ui/use-toast";
 
-// --- StorageDemoComponent (copied from storage-service.ts for direct use here for now) ---
-// This is for demonstration. In a real app, you'd likely have this as a separate component.
+// --- StorageDemoComponent (uses storage-service which is now mocked) ---
 import { uploadFile as uploadFileToStorage, getFileUrl as getFileUrlFromStorage, deleteFile as deleteFileFromStorage, listFilesAndFolders as listItemsFromStorage } from '@/services/storage-service';
 // --- End of StorageDemoComponent ---
 
@@ -62,9 +61,9 @@ export default function AdminDashboardPage() {
   const [userFirstVisible, setUserFirstVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
 
-  // Storage Demo states
+  // Storage Demo states (now uses mock storage service)
   const [file, setFile] = useState<File | null>(null);
-  const [filePath, setFilePath] = useState<string>('admin-uploads/report.pdf');
+  const [filePath, setFilePath] = useState<string>('admin-uploads/mock-report.pdf');
   const [storageMessage, setStorageMessage] = useState<string>('');
   const [fileUrl, setFileUrl] = useState<string>('');
   const [listedItems, setListedItems] = useState<{ files: string[], folders: string[] }>({ files: [], folders: [] });
@@ -136,7 +135,7 @@ export default function AdminDashboardPage() {
             setUserLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
             setUserFirstVisible(querySnapshot.docs[0]);
         } else {
-            setUserLastVisible(null); // Important if filters yield no results on a page
+            setUserLastVisible(null); 
             setUserFirstVisible(null);
         }
         setLoadingUsers(false);
@@ -161,7 +160,7 @@ export default function AdminDashboardPage() {
       unsubscribeBookingsPromise?.then(unsub => typeof unsub === 'function' && unsub());
       unsubscribeUsersPromise?.then(unsub => typeof unsub === 'function' && unsub());
     };
-  }, [bookingSortColumn, bookingSortDirection, userSortColumn, userSortDirection, userRoleFilter]); // Refetch on sort/filter change
+  }, [bookingSortColumn, bookingSortDirection, userSortColumn, userSortDirection, userRoleFilter]);
 
   useEffect(() => {
     let tempBookings = [...bookings];
@@ -175,7 +174,6 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     let tempUsers = [...users];
     if (userEmailFilter) tempUsers = tempUsers.filter(u => u.email?.toLowerCase().includes(userEmailFilter.toLowerCase()));
-    // Role filter is handled by Firestore query
     setFilteredUsers(tempUsers);
   }, [users, userEmailFilter]);
 
@@ -227,35 +225,35 @@ export default function AdminDashboardPage() {
   }
 
 
-  // Storage Demo handlers
+  // Storage Demo handlers (now uses mock storage service)
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setFile(event.target.files[0]);
-      setFilePath(`admin-uploads/${event.target.files[0].name}`);
+      setFilePath(`admin-uploads/${event.target.files[0].name}`); // Keep path generation for realism
     }
   };
   const handleUpload = async () => {
     if (!file) { setStorageMessage("Please select a file to upload."); return; }
-    setStorageMessage("Uploading...");
+    setStorageMessage("Simulating upload...");
     try {
       const downloadURL = await uploadFileToStorage({ file, path: filePath });
-      setStorageMessage(`File uploaded! URL: ${downloadURL}`); setFileUrl(downloadURL);
-      toast({ title: "Upload Successful", description: `File ${file.name} uploaded.` });
+      setStorageMessage(`File upload simulated! Mock URL: ${downloadURL}`); setFileUrl(downloadURL);
+      toast({ title: "Upload Simulated", description: `Mock upload of ${file.name} complete.` });
     } catch (error: any) {
-      setStorageMessage(`Upload failed: ${error.message}`);
-      toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+      setStorageMessage(`Mock upload failed: ${error.message}`);
+      toast({ title: "Upload Simulation Failed", description: error.message, variant: "destructive" });
     }
   };
   const handleListItems = async (listPath: string) => {
-    setStorageMessage(`Listing items in '${listPath}'...`);
+    setStorageMessage(`Simulating listing items in '${listPath}'...`);
     try {
       const items = await listItemsFromStorage(listPath);
       setListedItems(items);
-      setStorageMessage(`Listed items in '${listPath}'. Files: ${items.files.length}, Folders: ${items.folders.length}`);
-      toast({ title: "Listing Successful", description: `Found ${items.files.length} files and ${items.folders.length} folders.` });
+      setStorageMessage(`Listed mock items in '${listPath}'. Files: ${items.files.length}, Folders: ${items.folders.length}`);
+      toast({ title: "Listing Simulated", description: `Found ${items.files.length} mock files and ${items.folders.length} mock folders.` });
     } catch (error: any) {
-      setStorageMessage(`Listing failed: ${error.message}`);
-      toast({ title: "Listing Failed", description: error.message, variant: "destructive" });
+      setStorageMessage(`Mock listing failed: ${error.message}`);
+      toast({ title: "Listing Simulation Failed", description: error.message, variant: "destructive" });
     }
   }
 
@@ -425,15 +423,18 @@ export default function AdminDashboardPage() {
 
       <Separator className="my-8" />
 
-      {/* File Management Section (Firebase Storage Demo) */}
+      {/* File Management Section (Mock Storage Demo) */}
       <Card>
         <CardHeader>
-          <CardTitle>File Management (Storage Demo)</CardTitle>
-          <CardDescription>Upload, list, and manage files in Firebase Storage.</CardDescription>
+          <CardTitle>File Management (Mock Storage Demo)</CardTitle>
+          <CardDescription>
+            Demonstrates file operations using a MOCK storage service. 
+            Actual file uploads to cloud storage are NOT occurring with this setup.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="file-upload">Select file to upload:</Label>
+            <Label htmlFor="file-upload">Select file to simulate upload:</Label>
             <Input id="file-upload" type="file" onChange={handleFileChange} />
           </div>
           <div className="space-y-2">
@@ -447,16 +448,18 @@ export default function AdminDashboardPage() {
             />
           </div>
           <div className="flex space-x-2">
-            <Button onClick={handleUpload} disabled={!file}>Upload File</Button>
+            <Button onClick={handleUpload} disabled={!file}>
+                <UploadCloud className="mr-2 h-4 w-4"/> Simulate Upload
+            </Button>
           </div>
            {fileUrl && (
             <div className="mt-2">
-              <p>Last retrieved/uploaded file URL:</p>
+              <p>Last simulated/retrieved file mock URL:</p>
               <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{fileUrl}</a>
             </div>
           )}
           <div className="mt-4 space-y-2">
-            <h3 className="text-lg font-medium">List Items in Storage Path</h3>
+            <h3 className="text-lg font-medium">List Mock Items in Storage Path</h3>
             <div className="flex space-x-2 items-center">
                 <Input 
                   type="text" 
@@ -466,23 +469,23 @@ export default function AdminDashboardPage() {
                   className="flex-grow"
                 />
                 <Button onClick={() => handleListItems((document.getElementById('list-path-input') as HTMLInputElement)?.value || '')}>
-                    List
+                    List Mock Items
                 </Button>
             </div>
             { (listedItems.files.length > 0 || listedItems.folders.length > 0) && (
               <Card className="p-4 bg-muted/50 max-h-60 overflow-y-auto">
-                <h4 className="font-semibold">Folders:</h4>
+                <h4 className="font-semibold">Mock Folders:</h4>
                 {listedItems.folders.length > 0 ? (
                   <ul className="list-disc pl-5 text-sm">
                     {listedItems.folders.map(folder => <li key={folder}>{folder}</li>)}
                   </ul>
-                ) : <p className="text-sm text-muted-foreground">No folders found.</p>}
-                <h4 className="font-semibold mt-2">Files:</h4>
+                ) : <p className="text-sm text-muted-foreground">No mock folders found.</p>}
+                <h4 className="font-semibold mt-2">Mock Files:</h4>
                 {listedItems.files.length > 0 ? (
                   <ul className="list-disc pl-5 text-sm">
                     {listedItems.files.map(fileItem => <li key={fileItem}>{fileItem}</li>)}
                   </ul>
-                ) : <p className="text-sm text-muted-foreground">No files found.</p>}
+                ) : <p className="text-sm text-muted-foreground">No mock files found.</p>}
               </Card>
             )}
           </div>
