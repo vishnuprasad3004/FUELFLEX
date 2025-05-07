@@ -2,57 +2,87 @@
 'use client';
 
 import { useAuthRedirect } from '@/hooks/use-auth-redirect';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, MapPin, AlertCircle, IndianRupee, ListChecks, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Truck, Fuel, MapPin, AlertCircle, IndianRupee, ListChecks, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { VEHICLE_TYPES, type BookingVehicleType } from '@/models/booking'; // Using existing vehicle types
+import { uploadFile as uploadFileToStorage } from '@/services/storage-service'; // Mock storage service
 
 interface Vehicle {
   id: string;
   name: string;
-  type: string;
+  type: BookingVehicleType;
   registrationNumber: string;
-  location: string; // Could be city name or live coordinates in a real app
-  fuelLevel: number; // Percentage
-  fastagBalance: number; // In INR
+  location: string; 
+  fuelLevel: number; 
+  fastagBalance: number; 
   status: 'idle' | 'in_transit' | 'maintenance' | 'offline';
   imageUrl: string;
+  rcBookUrl?: string; // URL for the RC book PDF/image
   dataAiHint: string;
   lastUpdated: string;
 }
 
 // Mock data for demonstration
-const mockVehicles: Vehicle[] = [
-  { id: 'V001', name: 'Tata Ace Gold', type: 'Mini Truck', registrationNumber: 'MH12AB1234', location: 'Mumbai, MH', fuelLevel: 75, fastagBalance: 1250, status: 'idle', imageUrl: 'https://picsum.photos/seed/tataacegold/400/250', dataAiHint: 'mini truck city', lastUpdated: '2 mins ago' },
-  { id: 'V002', name: 'Ashok Leyland Dost+', type: 'LCV', registrationNumber: 'KA01CD5678', location: 'En route to Pune', fuelLevel: 40, fastagBalance: 800, status: 'in_transit', imageUrl: 'https://picsum.photos/seed/leylanddostplus/400/250', dataAiHint: 'light truck highway', lastUpdated: 'Now' },
-  { id: 'V003', name: 'Mahindra Bolero Maxx', type: 'Pickup Truck', registrationNumber: 'DL03EF9012', location: 'Delhi NCR', fuelLevel: 90, fastagBalance: 2500, status: 'idle', imageUrl: 'https://picsum.photos/seed/boleromaxx/400/250', dataAiHint: 'pickup truck urban', lastUpdated: '10 mins ago' },
-  { id: 'V004', name: 'Eicher Pro 2049', type: 'Medium Duty Truck', registrationNumber: 'TN04GH3456', location: 'Maintenance Yard, Chennai', fuelLevel: 20, fastagBalance: 300, status: 'maintenance', imageUrl: 'https://picsum.photos/seed/eicherpro2049/400/250', dataAiHint: 'medium truck garage', lastUpdated: '1 hour ago' },
-  { id: 'V005', name: 'BharatBenz 1617R', type: 'Heavy Duty Truck', registrationNumber: 'GJ05IJ7890', location: 'Ahmedabad Depot', fuelLevel: 60, fastagBalance: 5000, status: 'idle', imageUrl: 'https://picsum.photos/seed/bharatbenz1617r/400/250', dataAiHint: 'heavy truck depot', lastUpdated: '5 mins ago' },
-  { id: 'V006', name: 'Maruti Suzuki Super Carry', type: 'Mini Truck', registrationNumber: 'WB06KL1234', location: 'Kolkata City Limits', fuelLevel: 15, fastagBalance: 150, status: 'offline', imageUrl: 'https://picsum.photos/seed/supercarry/400/250', dataAiHint: 'small truck street', lastUpdated: '3 hours ago' },
+const initialMockVehicles: Vehicle[] = [
+  { id: 'V001', name: 'Tata Ace Gold', type: 'Mini Truck (Tata Ace, Mahindra Jeeto, etc.)', registrationNumber: 'MH12AB1234', location: 'Mumbai, MH', fuelLevel: 75, fastagBalance: 1250, status: 'idle', imageUrl: 'https://picsum.photos/seed/tataacegold/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV001/200/300', dataAiHint: 'mini truck city', lastUpdated: '2 mins ago' },
+  { id: 'V002', name: 'Ashok Leyland Dost+', type: 'LCV (Tata 407, Eicher Pro 2000, etc.)', registrationNumber: 'KA01CD5678', location: 'En route to Pune', fuelLevel: 40, fastagBalance: 800, status: 'in_transit', imageUrl: 'https://picsum.photos/seed/leylanddostplus/400/250', dataAiHint: 'light truck highway', lastUpdated: 'Now' },
+  { id: 'V003', name: 'Mahindra Bolero Maxx', type: 'Tempo / Pickup Truck (Tata Yodha, Bolero Pickup, etc.)', registrationNumber: 'DL03EF9012', location: 'Delhi NCR', fuelLevel: 90, fastagBalance: 2500, status: 'idle', imageUrl: 'https://picsum.photos/seed/boleromaxx/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV003/200/300', dataAiHint: 'pickup truck urban', lastUpdated: '10 mins ago' },
 ];
+
+const vehicleRegistrationSchema = z.object({
+  name: z.string().min(3, "Vehicle name must be at least 3 characters"),
+  type: z.string().refine(val => VEHICLE_TYPES.includes(val as BookingVehicleType), {
+    message: "Please select a valid vehicle type."
+  }),
+  registrationNumber: z.string().min(6, "Registration number is required (e.g., MH01AB1234)")
+    // Basic regex for Indian vehicle registration, can be improved
+    .regex(/^[A-Z]{2}[0-9]{1,2}(?:[A-Z])?(?:[A-Z]*)?[0-9]{4}$/, "Invalid registration number format. E.g., MH01AB1234, DL1C1234, KA05N9876"),
+});
+type VehicleRegistrationFormInputs = z.infer<typeof vehicleRegistrationSchema>;
 
 
 export default function TransportOwnerDashboardPage() {
   useAuthRedirect({ requireAuth: true, requireRole: 'transport_owner' });
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  const [vehicles, setVehicles] = useState<Vehicle[]>(initialMockVehicles);
+  const [loading, setLoading] = useState(false); // For data refresh, not initial load now
+  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
+  const [vehicleImageFile, setVehicleImageFile] = useState<File | null>(null);
+  const [rcBookFile, setRcBookFile] = useState<File | null>(null);
+  
   const { toast } = useToast();
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset: resetForm,
+    formState: { errors, isSubmitting: isFormSubmitting },
+  } = useForm<VehicleRegistrationFormInputs>({
+    resolver: zodResolver(vehicleRegistrationSchema),
+  });
 
   const fetchVehicleData = () => {
     setLoading(true);
-    // Simulate API call
     setTimeout(() => {
-      // Introduce some randomness to mock data updates
-      const updatedVehicles = mockVehicles.map(v => ({
+      const updatedVehicles = vehicles.map(v => ({ // Update existing vehicles rather than re-initializing from mock.
         ...v,
-        fuelLevel: Math.max(10, Math.min(100, v.fuelLevel + Math.floor(Math.random() * 20) - 10)), // Fluctuate fuel
-        fastagBalance: Math.max(100, v.fastagBalance + Math.floor(Math.random() * 500) - 250), // Fluctuate balance
-        status: v.status === 'offline' ? (Math.random() > 0.7 ? 'idle' : 'offline') : v.status, // Chance for offline to come online
+        fuelLevel: Math.max(10, Math.min(100, v.fuelLevel + Math.floor(Math.random() * 20) - 10)),
+        fastagBalance: Math.max(100, v.fastagBalance + Math.floor(Math.random() * 500) - 250),
+        status: v.status === 'offline' ? (Math.random() > 0.7 ? 'idle' : 'offline') : v.status,
         lastUpdated: `${Math.floor(Math.random()*59) +1} mins ago`
       }));
       setVehicles(updatedVehicles);
@@ -64,9 +94,8 @@ export default function TransportOwnerDashboardPage() {
     }, 1000);
   }
 
-  useEffect(() => {
-    fetchVehicleData();
-  }, []);
+  // No initial fetchVehicleData in useEffect as we use initialMockVehicles.
+  // User can refresh manually.
 
   const getStatusColor = (status: Vehicle['status']) => {
     switch (status) {
@@ -78,14 +107,56 @@ export default function TransportOwnerDashboardPage() {
     }
   }
 
-  if (loading && vehicles.length === 0) { // Show initial loading state
-    return (
-        <div className="flex flex-col justify-center items-center min-h-[calc(100vh-10rem)]">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-lg text-muted-foreground">Loading your fleet data...</p>
-        </div>
-    );
-  }
+  const handleVehicleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) setVehicleImageFile(e.target.files[0]);
+  };
+  const handleRcBookChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) setRcBookFile(e.target.files[0]);
+  };
+
+  const onRegisterVehicleSubmit: SubmitHandler<VehicleRegistrationFormInputs> = async (data) => {
+    let vehicleImageUrl = 'https://picsum.photos/seed/newvehicle/400/250'; // Default mock
+    let rcBookMockUrl = undefined;
+
+    if (vehicleImageFile) {
+      try {
+        vehicleImageUrl = await uploadFileToStorage({ file: vehicleImageFile, path: `vehicles/images/${Date.now()}-${vehicleImageFile.name}`});
+      } catch (error) {
+        console.error("Error uploading vehicle image (mock):", error);
+        toast({ title: "Image Upload Failed (Mock)", description: "Using default image.", variant: "warning"});
+      }
+    }
+    if (rcBookFile) {
+       try {
+        rcBookMockUrl = await uploadFileToStorage({ file: rcBookFile, path: `vehicles/rc_books/${Date.now()}-${rcBookFile.name}`});
+      } catch (error) {
+        console.error("Error uploading RC book (mock):", error);
+        toast({ title: "RC Book Upload Failed (Mock)", description: "Proceeding without RC book URL.", variant: "warning"});
+      }
+    }
+
+    const newVehicle: Vehicle = {
+      id: `V${String(vehicles.length + 1).padStart(3, '0')}`,
+      name: data.name,
+      type: data.type as BookingVehicleType,
+      registrationNumber: data.registrationNumber.toUpperCase(),
+      location: 'Garage (New)', // Default location
+      fuelLevel: 100, // Default fuel
+      fastagBalance: 1000, // Default balance
+      status: 'idle',
+      imageUrl: vehicleImageUrl,
+      rcBookUrl: rcBookMockUrl,
+      dataAiHint: `${data.type.toLowerCase().split(' ')[0]} vehicle`,
+      lastUpdated: 'Now',
+    };
+
+    setVehicles(prev => [newVehicle, ...prev]);
+    toast({ title: "Vehicle Registered (Mock)", description: `${data.name} has been added to your fleet.` });
+    resetForm();
+    setVehicleImageFile(null);
+    setRcBookFile(null);
+    setIsRegisterDialogOpen(false);
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -141,12 +212,69 @@ export default function TransportOwnerDashboardPage() {
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold">My Vehicle Fleet</h2>
-        <Button onClick={() => toast({title: "Feature Coming Soon", description: "Adding new vehicles will be available shortly."})}>
-            <PlusCircle className="mr-2 h-5 w-5"/> Add New Vehicle
-        </Button>
+        <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <PlusCircle className="mr-2 h-5 w-5"/> Register New Vehicle
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Register a New Vehicle</DialogTitle>
+              <DialogDescription>Enter the details of your vehicle to add it to your fleet. All fields are required unless marked optional.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit(onRegisterVehicleSubmit)} className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="name">Vehicle Name / Model</Label>
+                <Input id="name" {...register('name')} placeholder="e.g., Tata Ace Gold BS6" />
+                {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="type">Vehicle Type</Label>
+                <Controller
+                    name="type"
+                    control={control}
+                    render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <SelectTrigger id="type"><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
+                        <SelectContent>
+                        {VEHICLE_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    )}
+                />
+                {errors.type && <p className="text-sm text-destructive mt-1">{errors.type.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="registrationNumber">Registration Number</Label>
+                <Input id="registrationNumber" {...register('registrationNumber')} placeholder="e.g., MH01AB1234" />
+                {errors.registrationNumber && <p className="text-sm text-destructive mt-1">{errors.registrationNumber.message}</p>}
+              </div>
+               <div>
+                <Label htmlFor="vehicleImage">Vehicle Image (Optional)</Label>
+                <Input id="vehicleImage" type="file" accept="image/*" onChange={handleVehicleImageChange} />
+                {vehicleImageFile && <p className="text-xs text-muted-foreground mt-1">Selected: {vehicleImageFile.name}</p>}
+              </div>
+              <div>
+                <Label htmlFor="rcBook">RC Book (PDF/Image, Optional)</Label>
+                <Input id="rcBook" type="file" accept="image/*,.pdf" onChange={handleRcBookChange} />
+                 {rcBookFile && <p className="text-xs text-muted-foreground mt-1">Selected: {rcBookFile.name}</p>}
+              </div>
+              <DialogFooter className="mt-4">
+                <DialogClose asChild>
+                    <Button type="button" variant="outline" onClick={() => { resetForm(); setVehicleImageFile(null); setRcBookFile(null); }}>Cancel</Button>
+                </DialogClose>
+                <Button type="submit" disabled={isFormSubmitting}>
+                  {isFormSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                  Add Vehicle
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
       
-      {loading && vehicles.length > 0 && ( // Show loading indicator on refresh without clearing existing data
+      {loading && vehicles.length > 0 && (
          <div className="text-center py-6">
              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
              <p className="text-muted-foreground mt-2">Refreshing vehicle data...</p>
@@ -158,16 +286,18 @@ export default function TransportOwnerDashboardPage() {
           <CardContent className="flex flex-col items-center">
             <Truck className="h-20 w-20 text-muted-foreground mb-6" />
             <p className="text-xl text-muted-foreground mb-2">Your fleet is currently empty.</p>
-            <p className="text-sm text-muted-foreground mb-6">Add your vehicles to start managing them here.</p>
-            <Button onClick={() => toast({title: "Feature Coming Soon", description: "Adding new vehicles will be available shortly."})}>
-                 <PlusCircle className="mr-2 h-5 w-5"/> Add Your First Vehicle
-            </Button>
+            <p className="text-sm text-muted-foreground mb-6">Register your vehicles to start managing them here.</p>
+             <DialogTrigger asChild>
+                <Button onClick={() => setIsRegisterDialogOpen(true)}>
+                    <PlusCircle className="mr-2 h-5 w-5"/> Register Your First Vehicle
+                </Button>
+            </DialogTrigger>
           </CardContent>
         </Card>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {vehicles.map((vehicle) => (
-          <Card key={vehicle.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col">
+          <Card key={vehicle.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col group">
             <div className="relative h-52 w-full">
                 <Image 
                     src={vehicle.imageUrl} 
@@ -207,6 +337,23 @@ export default function TransportOwnerDashboardPage() {
                 <span className="flex items-center text-muted-foreground"><IndianRupee className="h-4 w-4 mr-2 text-emerald-600" /> FASTag Balance:</span>
                 <span className={`font-semibold ${vehicle.fastagBalance < 500 ? 'text-destructive': 'text-emerald-700'}`}>₹{vehicle.fastagBalance.toLocaleString()}</span>
               </div>
+              {vehicle.rcBookUrl && (
+                <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center text-muted-foreground"><FileText className="h-4 w-4 mr-2 text-indigo-500" /> RC Book:</span>
+                    <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="p-0 h-auto text-indigo-600 hover:text-indigo-800"
+                        onClick={() => {
+                            toast({title: "View RC Book (Mock)", description: `Displaying RC book for ${vehicle.name}. Mock URL: ${vehicle.rcBookUrl}`});
+                            // In a real app, open vehicle.rcBookUrl in a new tab or modal
+                            window.open(vehicle.rcBookUrl, '_blank');
+                        }}
+                    >
+                        View Document
+                    </Button>
+                </div>
+              )}
               <div className="text-xs text-muted-foreground text-right">
                 Last updated: {vehicle.lastUpdated}
               </div>
@@ -221,7 +368,3 @@ export default function TransportOwnerDashboardPage() {
     </div>
   );
 }
-// Added PlusCircle icon to imports
-import { PlusCircle } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
-```

@@ -51,15 +51,15 @@ export type BookingVehicleType = typeof VEHICLE_TYPES[number];
 export interface Booking {
   bookingId: string; // Firestore document ID
   buyerId: string; // Firebase Auth ID of the buyer
-  goodsId: string; // Reference to the 'goods' document being transported
-  sellerId: string; // Firebase Auth ID of the seller (denormalized from goods for easier querying)
+  goodsId?: string | null; // Reference to the 'goods' document being transported
+  sellerId?: string | null; // Firebase Auth ID of the seller (denormalized from goods for easier querying)
 
-  // Pickup location is sourced from the 'goods' document
-  // from: { 
-  //   address: string;
-  //   latitude: number;
-  //   longitude: number;
-  // };
+  // Pickup location 
+  pickupLocation: { 
+    address: string;
+    latitude?: number | null; // Made optional as it might be geocoded later
+    longitude?: number | null; // Made optional
+  };
   
   // Drop-off location specified by the buyer
   dropoffLocation: {
@@ -68,22 +68,20 @@ export interface Booking {
     longitude: number;
   };
   
-  // Goods details are primarily in the 'goods' document, but some might be snapshot here
-  // goodsType: string; // Likely sourced from goods.category or goods.productName
-  // weightKg: number; // Likely sourced from goods.weightKg * quantity_booked
+  goodsType: string; 
+  weightKg: number; 
 
-  vehicleType?: BookingVehicleType; // Buyer might select or it might be suggested
-  preferredPickupDate?: Timestamp | Date | null; // Buyer's preferred pickup date/time
+  vehicleType: BookingVehicleType; 
+  preferredPickupDate?: Timestamp | Date | null; 
 
   status: BookingStatus;
   
   driverId?: string | null;
   driverName?: string;
 
-  estimatedTransportCost?: number; // AI-calculated cost for the transport service
+  estimatedTransportCost?: number; 
   finalTransportCost?: number;
 
-  // Fuel Credit related fields (if applicable to the transport provider/driver)
   fuelCreditRequested?: boolean;
   fuelCost?: number | null;
   repayAmount?: number | null;
@@ -95,10 +93,10 @@ export interface Booking {
   
   actionLogs: ActionLogEntry[];
 
-  specialInstructions?: string; // From buyer for the transport
+  specialInstructions?: string; 
   paymentDetails?: {
     transportFeeTransactionId?: string;
-    goodsPriceTransactionId?: string; // If platform handles goods payment
+    goodsPriceTransactionId?: string; 
     method?: string;
     status?: string;
   };
@@ -110,13 +108,20 @@ export interface Booking {
 const exampleMarketplaceBooking: Booking = {
   bookingId: 'firestoreBookingId456',
   buyerId: 'buyerFirebaseUid123',
-  goodsId: 'firestoreDocIdGood123', // Links to the Good document
-  sellerId: 'sellerFirebaseUid789', // Denormalized from Good
+  goodsId: 'firestoreDocIdGood123', 
+  sellerId: 'sellerFirebaseUid789', 
+  pickupLocation: { // This would be populated from goodData or entered manually
+     address: "Ratnagiri Farm, Maharashtra",
+     latitude: 16.9944,
+     longitude: 73.3000
+  },
   dropoffLocation: {
     address: '789 Buyer Street, Pune, Maharashtra',
     latitude: 18.5204,
     longitude: 73.8567,
   },
+  goodsType: "Fresh Mangoes (Box of 12)", // Could be derived from good or entered
+  weightKg: 5, // Could be derived or entered
   vehicleType: 'Mini Truck (Tata Ace, Mahindra Jeeto, etc.)',
   preferredPickupDate: new Date('2024-09-20T14:00:00Z'),
   status: BookingStatus.PENDING,
@@ -129,3 +134,4 @@ const exampleMarketplaceBooking: Booking = {
   ],
 };
 */
+
