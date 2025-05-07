@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -15,7 +14,7 @@ import { Loader2, PlusCircle, UploadCloud, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { firestore } from '@/firebase/firebase-config';
+import { firestore } from '@/firebase/firebase-config'; // firestore instance
 import { uploadFile } from '@/services/storage-service'; 
 import { GOODS_CATEGORIES, type GoodsCategory } from '@/models/goods';
 import { useAuthRedirect } from '@/hooks/use-auth-redirect';
@@ -30,8 +29,8 @@ const listGoodSchema = z.object({
     z.number().positive("Price must be a positive number")
   ),
   quantity: z.preprocess(
-    (val) => val ? parseInt(String(val), 10) : undefined, // Allow empty or convert to number
-    z.number().int().positive("Quantity must be a positive integer").optional() // Make quantity optional
+    (val) => val ? parseInt(String(val), 10) : undefined, 
+    z.number().int().positive("Quantity must be a positive integer").optional() 
   ),
   description: z.string().min(10, "Description must be at least 10 characters"),
   locationAddress: z.string().min(5, "Pickup address is required"),
@@ -39,8 +38,6 @@ const listGoodSchema = z.object({
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number().positive("Weight must be a positive number").optional()
   ),
-  // contact: z.string().min(10, "Contact information is required (e.g., phone number)"), // Removed contact field
-  // images: z.custom<FileList>().optional(), // For file uploads - handled separately
 });
 
 type ListGoodFormInputs = z.infer<typeof listGoodSchema>;
@@ -82,19 +79,35 @@ export default function ListGoodPage() {
       toast({ title: "Authentication Error", description: "You must be logged in to list a good.", variant: "destructive" });
       return;
     }
+    if (!firestore) { 
+        toast({ title: "Database Error", description: "Firestore is not available. Please check connection or Firebase setup.", variant: "destructive" });
+        // setLoading(false); // Not needed here as setLoading(true) hasn't been called yet.
+        return;
+    }
+
     setLoading(true);
+    console.log("onSubmit triggered, setLoading(true)");
 
     try {
       let imageUrls: string[] = [];
       if (imageFiles && imageFiles.length > 0) {
+        const uid = currentUser.uid;
+        if (!uid) {
+            console.error("Current user UID is missing for image path construction.");
+            throw new Error("User ID is not available for image path construction.");
+        }
+        console.log(`Starting image uploads for ${imageFiles.length} files.`);
         for (const file of Array.from(imageFiles)) {
-          const path = `goods/${currentUser.uid}/${Date.now()}-${file.name}`;
+          const path = `goods/${uid}/${Date.now()}-${file.name}`;
+          console.log(`Uploading image to path: ${path}`);
           const url = await uploadFile({ file, path });
           imageUrls.push(url);
+          console.log(`Image uploaded, URL: ${url}`);
         }
+        console.log("All images uploaded.");
       }
 
-      const goodData: any = { // Use 'any' or a more specific type that allows conditional properties
+      const goodData: any = { 
         sellerId: currentUser.uid,
         productName: data.productName,
         category: data.category,
@@ -102,8 +115,8 @@ export default function ListGoodPage() {
         description: data.description,
         location: { 
           address: data.locationAddress,
-          latitude: 0, // Placeholder, ideally get from a map input or geocoding service
-          longitude: 0, // Placeholder
+          latitude: 0, 
+          longitude: 0, 
         },
         images: imageUrls,
         postedAt: serverTimestamp(),
@@ -117,9 +130,11 @@ export default function ListGoodPage() {
       if (data.weightKg !== undefined) {
         goodData.weightKg = data.weightKg;
       }
-
-
+      
+      console.log("Attempting to add good to Firestore with data:", JSON.stringify(goodData, null, 2));
       const docRef = await addDoc(collection(firestore, 'goods'), goodData);
+      console.log("Good added successfully to Firestore. Doc ID:", docRef.id);
+
       toast({
         title: "Good Listed Successfully!",
         description: `${data.productName} is now available in the marketplace.`,
@@ -131,13 +146,24 @@ export default function ListGoodPage() {
 
     } catch (error: any) {
       console.error("Error listing good:", error);
+      if (error.code) { 
+        console.error("Firebase Error Code:", error.code);
+      }
+      if (error.message) {
+        console.error("Error Message:", error.message);
+      }
+      if (error.stack) {
+        console.error("Error Stack:", error.stack);
+      }
       toast({
         title: "Listing Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: error.message || "An unexpected error occurred. Please check console for details.",
         variant: "destructive",
+        duration: 7000,
       });
     } finally {
       setLoading(false);
+      console.log("setLoading(false) called in finally block.");
     }
   };
 
@@ -208,13 +234,6 @@ export default function ListGoodPage() {
               {errors.locationAddress && <p className="text-sm text-destructive mt-1">{errors.locationAddress.message}</p>}
             </div>
             
-            {/* Contact Field Removed */}
-            {/* <div>
-              <Label htmlFor="contact">Contact Information (Phone/Email)</Label>
-              <Input id="contact" {...register('contact')} placeholder="Your contact details for buyers" />
-              {errors.contact && <p className="text-sm text-destructive mt-1">{errors.contact.message}</p>}
-            </div> */}
-
             {/* Weight (Optional) */}
             <div>
               <Label htmlFor="weightKg">Approximate Weight (kg) <span className="text-xs text-muted-foreground">(Optional)</span></Label>
@@ -247,4 +266,3 @@ export default function ListGoodPage() {
     </div>
   );
 }
-
