@@ -61,41 +61,54 @@ If you encounter errors like `auth/api-key-not-valid`, `GOOGLE_GENAI_API_KEY` is
 
 **Troubleshooting Steps for API Key Errors:**
 
-1.  **`.env` File Location:** Ensure the file is named exactly `.env` and is located in the **root directory** of your Next.js project.
-2.  **Variable Names:** Double-check that the variable names in your `.env` file exactly match the ones listed below.
-3.  **API Key Values:** Copy-paste carefully. No extra spaces or quotes (unless the key itself contains them).
-4.  **Correct Firebase Project:** Verify Firebase project details match your intended project.
+1.  **`.env` File Location:** Ensure the file is named exactly `.env` (not `.env.local` or `.env.development` unless you specifically intend that for Next.js environment stages) and is located in the **root directory** of your Next.js project.
+2.  **Variable Names:** Double-check that the variable names in your `.env` file exactly match the ones listed below (e.g., `NEXT_PUBLIC_FIREBASE_API_KEY`).
+3.  **API Key Values:**
+    *   Copy-paste carefully. Ensure there are no extra spaces or characters.
+    *   The API key itself is a long string of characters.
+    *   Verify you are using the **Web API Key** for Firebase.
+4.  **Correct Firebase Project:**
+    *   Go to your [Firebase Console](https://console.firebase.google.com/).
+    *   Select your project.
+    *   Go to **Project settings** (click the gear icon).
+    *   Under the **General** tab, scroll down to **Your apps**.
+    *   If you have a Web app, click on it. If not, add one.
+    *   Under **SDK setup and configuration**, select **Config**. You will find `apiKey`, `authDomain`, `projectId`, etc. These are the values you need.
+    *   Ensure these values in your `.env` file match **exactly** what is shown in the Firebase console for your intended project.
 5.  **Enabled APIs/Services:**
-    *   **Firebase:** Ensure Firebase Authentication, Firestore, and Cloud Storage are enabled.
-    *   **Google AI (Genkit):** Ensure the Generative Language API (or Vertex AI) is enabled.
-    *   **Google Maps:** Ensure "Distance Matrix API" is enabled for the `GOOGLE_MAPS_API_KEY`.
-6.  **API Key Restrictions (Google Cloud):** Check restrictions. For development, you might temporarily remove them.
-7.  **Apply Changes by Restarting Servers:**
-    *   After correcting the API key in your `.env` file, **MUST** restart your development servers:
+    *   **Firebase:** Ensure Firebase Authentication (with Email/Password sign-in method enabled), Firestore, and Cloud Storage are enabled in your Firebase project.
+    *   **Google AI (Genkit):** Ensure the Generative Language API (or Vertex AI, depending on your chosen model) is enabled in Google Cloud Console for the project linked to your `GOOGLE_GENAI_API_KEY`.
+    *   **Google Maps:** Ensure "Distance Matrix API" is enabled in Google Cloud Console for the project linked to your `GOOGLE_MAPS_API_KEY`.
+6.  **API Key Restrictions (Google Cloud):**
+    *   If you have set API key restrictions in Google Cloud Console (e.g., HTTP referrers, API restrictions), ensure they are configured correctly for your development environment (e.g., allowing `localhost`). For initial testing, you might temporarily remove restrictions to isolate the problem.
+7.  **Billing Account:** Some Google Cloud services require a billing account to be linked to the project, even if they fall within a free tier.
+8.  **Apply Changes by Restarting Servers:**
+    *   After creating or correcting your `.env` file and its API keys, you **MUST** restart your development servers:
         *   Next.js development server: `npm run dev` (or `yarn dev`)
-        *   Genkit development server: `npm run genkit:watch` (or `yarn genkit:watch`)
+        *   Genkit development server (if running separately): `npm run genkit:watch` (or `yarn genkit:watch`)
 
 ```env
 # Get your Google GenAI API key from Google AI Studio: https://aistudio.google.com/app/apikey
 # Or from Google Cloud: https://console.cloud.google.com/apis/credentials
-# Ensure the Generative Language API (or Vertex AI, depending on model) is enabled.
+# Ensure the Generative Language API (or Vertex AI, depending on model) is enabled for the associated project.
 GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_GENAI_API_KEY_HERE
 
 # Get your Google Maps API Key from Google Cloud Console: https://console.cloud.google.com/google/maps-apis/credentials
-# Ensure "Distance Matrix API" is enabled for this key.
+# Ensure "Distance Matrix API" is enabled for this key for the associated project.
 GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 
 # Firebase configuration
 # Get these from your Firebase project settings:
-# Project settings > General > Your apps > Web app > SDK setup and configuration
-# CRITICAL: Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your project.
-NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=YOUR_FIREBASE_STORAGE_BUCKET
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_FIREBASE_MESSAGING_SENDER_ID
-NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
-# NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID # Optional, for Analytics
+# Project settings > General > Your apps > Web app > SDK setup and configuration (select 'Config')
+# CRITICAL: Ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your Firebase project.
+# This is the most common cause of 'auth/api-key-not-valid' errors.
+NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_FIREBASE_API_KEY_HERE
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_FIREBASE_AUTH_DOMAIN_HERE
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID_HERE
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=YOUR_FIREBASE_STORAGE_BUCKET_HERE
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_FIREBASE_MESSAGING_SENDER_ID_HERE
+NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID_HERE
+# NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID_HERE # Optional, for Analytics
 ```
 
 ### Installation (Backend)
@@ -178,11 +191,11 @@ The Next.js backend exposes an AI-powered pricing feature via a REST API endpoin
       "details": { /* Zod validation error details */ }
     }
     ```
-*   **Status 500 Internal Server Error:** If there's an issue on the server side.
+*   **Status 500 Internal Server Error:** If there's an issue on the server side, including failure from Genkit flow due to API key issues or other AI errors.
     ```json
     {
       "error": "Price estimation failed",
-      "details": "...", // Specific error message
+      "details": "...", // Specific error message from the flow
       "currency": "INR",
       "estimatedPrice": 0
     }
@@ -204,8 +217,9 @@ Future<Map<String, dynamic>?> getPriceEstimateFromApi({
 }) async {
   // For local Next.js dev server: 'http://localhost:9002/api/calculate-price'
   // For Android emulator accessing local dev server: 'http://10.0.2.2:9002/api/calculate-price'
+  // For iOS simulator accessing local dev server: 'http://localhost:9002/api/calculate-price' (usually works directly)
   // Replace with your deployed Next.js app URL in production.
-  final url = Uri.parse('http://10.0.2.2:9002/api/calculate-price'); // Example for Android Emu
+  final url = Uri.parse('http://10.0.2.2:9002/api/calculate-price'); // Example for Android Emulator
 
   try {
     final response = await http.post(
@@ -256,4 +270,3 @@ Future<Map<String, dynamic>?> getPriceEstimateFromApi({
 ```
 Remember to handle API URLs correctly depending on whether you're running on an emulator, a physical device, or in production.
 Ensure the `vehicleType` string passed from Flutter matches one of the expected types defined in `src/models/booking.ts` in the Next.js backend.
-```

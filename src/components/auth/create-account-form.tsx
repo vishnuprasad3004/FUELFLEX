@@ -13,8 +13,8 @@ import { auth } from '@/firebase/firebase-config';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, UserPlus } from 'lucide-react';
-import { createUserProfile } from '@/services/user-service'; // Ensure this path is correct
-import { UserRole } from '@/models/user'; // Ensure this path is correct
+import { createUserProfile } from '@/services/user-service'; 
+import { UserRole } from '@/models/user'; 
 
 const createAccountSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -27,7 +27,7 @@ type CreateAccountFormInputs = z.infer<typeof createAccountSchema>;
 
 export default function CreateAccountForm() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // For inline error display if needed
   const router = useRouter();
   const { toast } = useToast();
 
@@ -39,7 +39,7 @@ export default function CreateAccountForm() {
   } = useForm<CreateAccountFormInputs>({
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
-      role: UserRole.BUYER_SELLER, // Default role
+      role: UserRole.BUYER_SELLER, 
     },
   });
 
@@ -51,36 +51,48 @@ export default function CreateAccountForm() {
       const user = userCredential.user;
 
       if (user) {
-        // Store additional user information (like role) in Firestore
         await createUserProfile(user.uid, user.email || data.email, data.role, {
-          displayName: data.displayName || user.email?.split('@')[0], // Use email prefix if no display name
-          photoURL: user.photoURL, // This will be null initially for email/password
+          displayName: data.displayName || user.email?.split('@')[0], 
+          photoURL: user.photoURL, 
         });
 
         toast({
           title: "Account Created Successfully!",
           description: "Welcome to FuelFlex! Redirecting...",
         });
-        // AuthProvider will handle profile fetching, useAuthRedirect handles navigation
-        // For explicit redirect: router.push('/'); or role-specific page
+        // AuthProvider handles profile fetching, useAuthRedirect handles navigation.
+        // Explicit redirect example: router.push(data.role === UserRole.ADMIN ? '/admin/dashboard' : '/');
       }
     } catch (err: any) {
-      console.error("Create account error:", err);
+      console.error("Create account error:", err.code, err.message);
       let errorMessage = "Failed to create account. Please try again.";
-      if (err.code === 'auth/email-already-in-use') {
-        errorMessage = "This email address is already in use.";
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email format.";
-      } else if (err.code === 'auth/weak-password') {
-        errorMessage = "Password is too weak. Please choose a stronger password.";
-      } else if (err.code === 'auth/api-key-not-valid') {
-         errorMessage = "Firebase API key is invalid. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your Firebase project. See README.md for setup instructions.";
+      
+      switch (err.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = "This email address is already in use. Please try logging in or use a different email.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "The email address is not valid. Please enter a correct email format.";
+          break;
+        case 'auth/weak-password':
+          errorMessage = "The password is too weak. Please choose a stronger password (at least 6 characters).";
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = "Email/password accounts are not enabled. Please contact support.";
+          break;
+        case 'auth/api-key-not-valid':
+          errorMessage = "CRITICAL CONFIG ERROR: Firebase API key is invalid. This app cannot connect to Firebase. Please ensure 'NEXT_PUBLIC_FIREBASE_API_KEY' in your .env file is correct and matches the Web API Key from your Firebase project settings (General > Your apps > SDK setup and configuration). Restart your server after fixing. See README.md for detailed setup instructions.";
+          break;
+        default:
+          errorMessage = `An unexpected error occurred: ${err.message} (Code: ${err.code})`;
       }
-      setError(errorMessage);
+      
+      setError(errorMessage); // Set error for potential inline display
       toast({
         title: "Account Creation Failed",
         description: errorMessage,
         variant: "destructive",
+        duration: 9000, // Longer duration for critical errors
       });
     } finally {
       setLoading(false);
@@ -117,7 +129,6 @@ export default function CreateAccountForm() {
                     <SelectContent>
                         <SelectItem value={UserRole.BUYER_SELLER}>Buyer / Seller</SelectItem>
                         <SelectItem value={UserRole.TRANSPORT_OWNER}>Transport Owner</SelectItem>
-                        {/* Admin role typically assigned manually, not during public registration */}
                         {/* <SelectItem value={UserRole.ADMIN}>Admin</SelectItem> */}
                     </SelectContent>
                 </Select>
@@ -125,7 +136,7 @@ export default function CreateAccountForm() {
         />
         {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {/* {error && <p className="text-sm text-destructive text-center mt-2">{error}</p>} */}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
         Create Account

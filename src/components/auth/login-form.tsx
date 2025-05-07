@@ -22,7 +22,7 @@ type LoginFormInputs = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // For inline error display
   const router = useRouter();
   const { toast } = useToast();
 
@@ -43,24 +43,37 @@ export default function LoginForm() {
         title: "Login Successful",
         description: "Welcome back! Redirecting...",
       });
-      // AuthProvider will fetch profile and useAuthRedirect will handle navigation
-      // For explicit redirect if needed immediately:
-      // router.push('/'); // Or a role-specific dashboard
+      // AuthProvider will fetch profile and useAuthRedirect will handle navigation.
+      // Explicit redirect: router.push('/'); or role-specific page
     } catch (err: any) {
-      console.error("Login error:", err);
-      let errorMessage = "Failed to login. Please check your credentials.";
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        errorMessage = "Invalid email or password.";
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email format.";
-      } else if (err.code === 'auth/api-key-not-valid') {
-         errorMessage = "Firebase API key is invalid. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is correct and valid for your Firebase project. See README.md for setup instructions.";
+      console.error("Login error:", err.code, err.message);
+      let errorMessage = "Failed to login. Please check your credentials and try again.";
+
+      switch (err.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential': // More generic error in newer SDK versions
+          errorMessage = "Invalid email or password. Please check your credentials.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "The email address format is not valid.";
+          break;
+        case 'auth/user-disabled':
+          errorMessage = "This user account has been disabled. Please contact support.";
+          break;
+        case 'auth/api-key-not-valid':
+          errorMessage = "CRITICAL CONFIG ERROR: Firebase API key is invalid. This app cannot connect to Firebase. Please ensure 'NEXT_PUBLIC_FIREBASE_API_KEY' in your .env file is correct and matches the Web API Key from your Firebase project settings (General > Your apps > SDK setup and configuration). Restart your server after fixing. See README.md for detailed setup instructions.";
+          break;
+        default:
+          errorMessage = `An unexpected error occurred: ${err.message} (Code: ${err.code})`;
       }
-      setError(errorMessage);
+      
+      setError(errorMessage); // Set error for potential inline display
       toast({
         title: "Login Failed",
         description: errorMessage,
         variant: "destructive",
+        duration: 9000, // Longer duration for critical errors
       });
     } finally {
       setLoading(false);
@@ -79,7 +92,7 @@ export default function LoginForm() {
         <Input id="password" type="password" placeholder="••••••••" {...register('password')} aria-invalid={errors.password ? "true" : "false"} />
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {/* {error && <p className="text-sm text-destructive text-center mt-2">{error}</p>} */}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogInIcon className="mr-2 h-4 w-4" />}
         Login
