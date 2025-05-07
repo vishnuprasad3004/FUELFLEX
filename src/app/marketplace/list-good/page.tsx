@@ -15,10 +15,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '@/firebase/firebase-config';
-import { uploadFile } from '@/services/storage-service'; // Assuming you have this service
+import { uploadFile } from '@/services/storage-service'; 
 import { GOODS_CATEGORIES, type GoodsCategory } from '@/models/goods';
 import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { useToast } from "@/components/ui/use-toast";
+import Image from 'next/image';
 
 const listGoodSchema = z.object({
   productName: z.string().min(3, "Product name must be at least 3 characters"),
@@ -28,19 +29,17 @@ const listGoodSchema = z.object({
     z.number().positive("Price must be a positive number")
   ),
   quantity: z.preprocess(
-    (val) => parseInt(String(val), 10),
-    z.number().int().positive("Quantity must be a positive integer")
+    (val) => val ? parseInt(String(val), 10) : undefined, // Allow empty or convert to number
+    z.number().int().positive("Quantity must be a positive integer").optional() // Make quantity optional
   ),
   description: z.string().min(10, "Description must be at least 10 characters"),
   locationAddress: z.string().min(5, "Pickup address is required"),
-  // For simplicity, latitude/longitude might be auto-geocoded or entered manually in a real app
-  // For this form, we'll just use address string.
-  contact: z.string().min(10, "Contact information is required (e.g., phone number)"),
   weightKg: z.preprocess(
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number().positive("Weight must be a positive number").optional()
   ),
-  // images: z.custom<FileList>().optional(), // For file uploads
+  // contact: z.string().min(10, "Contact information is required (e.g., phone number)"), // Removed contact field
+  // images: z.custom<FileList>().optional(), // For file uploads - handled separately
 });
 
 type ListGoodFormInputs = z.infer<typeof listGoodSchema>;
@@ -99,19 +98,19 @@ export default function ListGoodPage() {
         productName: data.productName,
         category: data.category,
         price: data.price,
-        quantity: data.quantity,
+        quantity: data.quantity, // Will be undefined if not provided, or a number
         description: data.description,
-        location: { // Simplified location, a real app might use geocoding
+        location: { 
           address: data.locationAddress,
-          latitude: 0, // Placeholder - implement geocoding or manual input
-          longitude: 0, // Placeholder
+          latitude: 0, 
+          longitude: 0, 
         },
-        contact: data.contact,
+        // contact: data.contact, // Removed contact field
         images: imageUrls,
         weightKg: data.weightKg,
         postedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        isActive: true, // Default to active
+        isActive: true, 
       };
 
       const docRef = await addDoc(collection(firestore, 'goods'), goodData);
@@ -181,9 +180,9 @@ export default function ListGoodPage() {
                 {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
               </div>
 
-              {/* Quantity */}
+              {/* Quantity (Optional) */}
               <div>
-                <Label htmlFor="quantity">Quantity</Label>
+                <Label htmlFor="quantity">Quantity <span className="text-xs text-muted-foreground">(Optional)</span></Label>
                 <Input id="quantity" type="number" step="1" {...register('quantity')} placeholder="e.g., 10" />
                 {errors.quantity && <p className="text-sm text-destructive mt-1">{errors.quantity.message}</p>}
               </div>
@@ -203,12 +202,12 @@ export default function ListGoodPage() {
               {errors.locationAddress && <p className="text-sm text-destructive mt-1">{errors.locationAddress.message}</p>}
             </div>
             
-            {/* Contact */}
-            <div>
+            {/* Contact Field Removed */}
+            {/* <div>
               <Label htmlFor="contact">Contact Information (Phone/Email)</Label>
               <Input id="contact" {...register('contact')} placeholder="Your contact details for buyers" />
               {errors.contact && <p className="text-sm text-destructive mt-1">{errors.contact.message}</p>}
-            </div>
+            </div> */}
 
             {/* Weight (Optional) */}
             <div>
@@ -219,7 +218,7 @@ export default function ListGoodPage() {
 
             {/* Image Upload */}
             <div>
-              <Label htmlFor="images">Product Images <span className="text-xs text-muted-foreground">(Optional, max 3)</span></Label>
+              <Label htmlFor="images">Product Images <span className="text-xs text-muted-foreground">(Optional, max 3 recommended)</span></Label>
               <Input id="images" type="file" multiple accept="image/*" onChange={handleImageChange} />
               {imagePreviews.length > 0 && (
                 <div className="mt-2 grid grid-cols-3 gap-2">

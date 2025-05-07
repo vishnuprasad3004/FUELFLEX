@@ -23,7 +23,7 @@ export interface Good {
   productName: string;
   category: GoodsCategory;
   price: number; // Price of the good itself, transport cost is separate
-  quantity: number; // Available quantity
+  quantity?: number; // Available quantity - now optional
   description: string;
   
   // Pickup location for the goods
@@ -33,7 +33,7 @@ export interface Good {
     longitude: number;
   };
   
-  contact: string; // Seller's contact information (e.g., phone number or masked email)
+  contact?: string; // Seller's contact information (e.g., phone number or masked email) - now optional
   images?: string[]; // Array of URLs for product images (optional)
   
   weightKg?: number; // Optional: Approximate weight per unit or total if quantity is 1
@@ -63,7 +63,7 @@ const exampleGood: Good = {
     latitude: 16.9944,
     longitude: 73.3000
   },
-  contact: '+91-98XXXXXX00',
+  contact: '+91-98XXXXXX00', // Optional field
   images: ['https://picsum.photos/seed/mangoes/400/300'],
   weightKg: 5, // Approx weight of one box
   postedAt: new Date(),

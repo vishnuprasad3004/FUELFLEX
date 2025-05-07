@@ -107,9 +107,11 @@ export default function GoodDetailPage() {
               <div className="flex items-center text-sm text-muted-foreground">
                 <Tag className="mr-2 h-4 w-4" /> Category: <span className="ml-1 font-medium text-foreground">{good.category}</span>
               </div>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Package className="mr-2 h-4 w-4" /> Quantity Available: <span className="ml-1 font-medium text-foreground">{good.quantity}</span>
-              </div>
+              {good.quantity && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Package className="mr-2 h-4 w-4" /> Quantity Available: <span className="ml-1 font-medium text-foreground">{good.quantity}</span>
+                </div>
+              )}
               
               <p className="text-base leading-relaxed">{good.description}</p>
 
@@ -122,9 +124,12 @@ export default function GoodDetailPage() {
                 <div className="flex items-center text-sm text-muted-foreground">
                   <MapPin className="mr-2 h-4 w-4" /> Pickup Location: <span className="ml-1 font-medium text-foreground">{good.location.address}</span>
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Phone className="mr-2 h-4 w-4" /> Contact: <span className="ml-1 font-medium text-foreground">{good.contact}</span>
-                </div>
+                {/* Contact information display removed */}
+                {/* {good.contact && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Phone className="mr-2 h-4 w-4" /> Contact: <span className="ml-1 font-medium text-foreground">{good.contact}</span>
+                  </div>
+                )} */}
                  <p className="text-xs text-muted-foreground mt-1">Posted on: {new Date((good.postedAt as any).seconds * 1000).toLocaleDateString()}</p>
               </div>
             </CardContent>
