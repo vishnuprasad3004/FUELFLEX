@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -8,7 +9,7 @@ import { UserRole } from '@/models/user'; // Added import for UserRole
 
 // --- DEVELOPMENT BYPASS CONTROL ---
 // This should ideally be consistent with the one in AuthProvider.
-const DEVELOPMENT_BYPASS_AUTH_REDIRECT = true; 
+const DEVELOPMENT_BYPASS_AUTH_REDIRECT = false; 
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
