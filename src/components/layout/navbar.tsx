@@ -8,7 +8,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { useRouter } from 'next/navigation';
 import { LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingCart, TruckIcon, UserCog, HomeIcon } from 'lucide-react';
-import Image from 'next/image';
+// import Image from 'next/image'; // Logo removed
 
 export default function Navbar() {
   const { currentUser, userProfile, isAdmin, isTransportOwner, isBuyerSeller } = useAuth();
@@ -28,7 +28,8 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b shadow-sm">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2 text-2xl font-bold text-primary">
-          <Image src="/logo.png" alt="FuelFlex Logo" width={40} height={40} data-ai-hint="logo transport" />
+          {/* Logo removed from here */}
+          {/* <Image src="/logo.png" alt="FuelFlex Logo" width={40} height={40} data-ai-hint="logo transport" /> */}
           <span>FuelFlex</span>
         </Link>
 

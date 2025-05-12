@@ -184,9 +184,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-primary text-primary-foreground py-16 border-t-4 border-accent">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center mb-6">
-            <Image src="/logo.png" alt="FuelFlex Logo" width={60} height={60} className="rounded-md shadow-lg" data-ai-hint="logo transport white"/>
-          </div>
+          
           <p className="font-semibold text-2xl mb-2 text-white">FuelFlex Transport</p>
           <p className="text-sm mt-2 opacity-90 max-w-md mx-auto leading-relaxed">Your reliable partner for nationwide goods transport and innovative fuel credit solutions. Powering India's logistics, one delivery at a time.</p>
           <div className="mt-8 space-x-6 text-sm">

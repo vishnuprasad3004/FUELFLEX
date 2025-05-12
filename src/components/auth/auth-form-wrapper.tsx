@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
-import Image from 'next/image';
+// import Image from 'next/image'; // Logo removed
 
 interface AuthFormWrapperProps {
   title: string;
@@ -24,10 +24,11 @@ export default function AuthFormWrapper({
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
-          <Link href="/" className="inline-block mb-4">
+          {/* Logo removed from here */}
+          {/* <Link href="/" className="inline-block mb-4">
             <Image src="/logo.png" alt="FuelFlex Logo" width={60} height={60} data-ai-hint="logo transport" />
-          </Link>
-          <CardTitle className="text-3xl font-bold">{title}</CardTitle>
+          </Link> */}
+          <CardTitle className="text-3xl font-bold pt-4">{title}</CardTitle> {/* Added padding-top if logo space is removed */}
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
