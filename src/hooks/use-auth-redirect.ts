@@ -9,7 +9,7 @@ import { UserRole } from '@/models/user'; // Added import for UserRole
 
 // --- DEVELOPMENT BYPASS CONTROL ---
 // This should ideally be consistent with the one in AuthProvider.
-const DEVELOPMENT_BYPASS_AUTH_REDIRECT = false; 
+const DEVELOPMENT_BYPASS_AUTH_REDIRECT = true; 
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
@@ -74,3 +74,4 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
 
   return { currentUser, userProfile, loading };
 }
+

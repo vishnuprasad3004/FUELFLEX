@@ -50,7 +50,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         // Replace with your macOS Firebase config
          return const FirebaseOptions(
-          apiKey: 'YOUR_MACOS_API_KEY',
+          apiKey: 'YOUR_MACOS_API_KEY',AIzaSyCCilDerMwFxw-rwJV-cnBPMyk54KcOb2Y
           appId: 'YOUR_MACOS_APP_ID',
           messagingSenderId: 'YOUR_MACOS_MESSAGING_SENDER_ID',
           projectId: 'YOUR_MACOS_PROJECT_ID',
