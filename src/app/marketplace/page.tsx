@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ShoppingBag, PlusCircle, Search, Filter, ArrowRight, Truck } from 'lucide-react'; // Added Truck
+import { ShoppingBag, PlusCircle, Search, Filter, ArrowRight, Truck } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import type { Good, GoodsCategory } from '@/models/goods';
 import { GOODS_CATEGORIES } from '@/models/goods';
@@ -29,7 +30,7 @@ export default function MarketplacePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<GoodsCategory | 'all'>('all');
   
-  // Sorting (example, can be expanded)
+  // Sorting
   const [sortBy, setSortBy] = useState<'postedAt' | 'price'>('postedAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -43,7 +44,7 @@ export default function MarketplacePage() {
     try {
       let goodsQuery = query(
         collection(firestore, 'goods'),
-        where('isActive', '==', true), // Only show active listings
+        where('isActive', '==', true), 
         orderBy(sortBy, sortDirection),
         limit(ITEMS_PER_PAGE)
       );
@@ -51,13 +52,9 @@ export default function MarketplacePage() {
       if (loadMore && lastVisibleDoc) {
         goodsQuery = query(goodsQuery, startAfter(lastVisibleDoc));
       } else {
-        // Resetting for a new filter/sort or initial load
         setLastVisibleDoc(null); 
       }
       
-      // Apply category filter if not 'all'
-      // Note: Firestore requires composite indexes for queries with multiple range/orderBy on different fields
-      // For simplicity, this example might not combine category filter with all sortings perfectly without indexes.
       if (categoryFilter !== 'all') {
          goodsQuery = query(collection(firestore, 'goods'), where('isActive', '==', true), where('category', '==', categoryFilter), orderBy(sortBy, sortDirection), limit(ITEMS_PER_PAGE));
          if (loadMore && lastVisibleDoc) {
@@ -106,7 +103,8 @@ export default function MarketplacePage() {
         }
       });
     };
-  }, [sortBy, sortDirection, categoryFilter]); // Refetch on sort or category change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy, sortDirection, categoryFilter]); 
 
   useEffect(() => {
     let tempGoods = [...goods];
@@ -131,20 +129,20 @@ export default function MarketplacePage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <Card className="mb-8 shadow-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-        <CardHeader className="flex flex-col md:flex-row justify-between items-center">
+      <Card className="mb-8 shadow-xl bg-gradient-to-r from-primary via-primary/90 to-accent/50 text-primary-foreground border-primary/30">
+        <CardHeader className="flex flex-col md:flex-row justify-between items-center p-6">
           <div>
             <CardTitle className="text-3xl font-bold flex items-center"><ShoppingBag className="mr-3 h-8 w-8" /> Goods Marketplace</CardTitle>
-            <CardDescription className="text-primary-foreground/80 mt-1">Browse goods, find sellers, and book transport.</CardDescription>
+            <CardDescription className="text-primary-foreground/90 mt-1">Browse goods, find sellers, and book transport.</CardDescription>
           </div>
-          <div className="mt-4 md:mt-0 flex space-x-2">
+          <div className="mt-4 md:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             <Link href="/marketplace/list-good" passHref legacyBehavior>
-              <Button variant="secondary" size="lg" className="shadow-md">
+              <Button variant="secondary" size="lg" className="shadow-md text-secondary-foreground hover:bg-secondary/80">
                 <PlusCircle className="mr-2 h-5 w-5" /> List Your Good
               </Button>
             </Link>
             <Link href="/marketplace/book-transport" passHref legacyBehavior>
-              <Button variant="default" size="lg" className="bg-background text-primary hover:bg-background/90 shadow-md">
+              <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-md">
                 <Truck className="mr-2 h-5 w-5" /> Book Transport
               </Button>
             </Link>
@@ -153,21 +151,23 @@ export default function MarketplacePage() {
       </Card>
 
       {/* Filtering and Search Section */}
-      <Card className="mb-8 p-4">
-        <CardContent className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="flex-grow w-full md:w-auto">
+      <Card className="mb-8 p-6 shadow-lg border-border">
+        <CardContent className="flex flex-col md:flex-row gap-4 items-center p-0">
+          <div className="flex-grow w-full md:w-auto relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
               type="text" 
               placeholder="Search by product name, description..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10"
+              className="h-11 pl-10"
               aria-label="Search goods"
             />
           </div>
           <div className="flex gap-4 w-full md:w-auto">
             <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as GoodsCategory | 'all')}>
-              <SelectTrigger className="w-full md:w-[200px] h-10" aria-label="Filter by category">
+              <SelectTrigger className="w-full md:w-[200px] h-11" aria-label="Filter by category">
+                <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
@@ -180,7 +180,7 @@ export default function MarketplacePage() {
               setSortBy(newSortBy as 'postedAt' | 'price');
               setSortDirection(newSortDirection as 'asc' | 'desc');
             }}>
-              <SelectTrigger className="w-full md:w-[180px] h-10" aria-label="Sort by">
+              <SelectTrigger className="w-full md:w-[180px] h-11" aria-label="Sort by">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
               <SelectContent>
@@ -197,17 +197,17 @@ export default function MarketplacePage() {
       {/* Goods Listing Section */}
       {loading && goods.length === 0 && (
          <div className="text-center py-10">
-            <ShoppingBag className="h-12 w-12 text-muted-foreground animate-pulse mx-auto mb-2" />
-            <p className="text-muted-foreground">Loading goods...</p>
+            <ShoppingBag className="h-16 w-16 text-muted-foreground animate-pulse mx-auto mb-4" />
+            <p className="text-lg text-muted-foreground">Loading available goods...</p>
         </div>
       )}
       
       {!loading && memoizedFilteredGoods.length === 0 && (
-        <Card className="text-center py-10 shadow">
+        <Card className="text-center py-16 shadow-md border-dashed border-muted-foreground/30">
           <CardContent>
-            <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-xl text-muted-foreground">No goods found matching your criteria.</p>
-            <p className="text-sm text-muted-foreground mt-2">Try adjusting your search or filters.</p>
+            <Search className="h-20 w-20 text-muted-foreground mx-auto mb-6" />
+            <p className="text-2xl font-semibold text-foreground mb-2">No Goods Found</p>
+            <p className="text-md text-muted-foreground">Try adjusting your search terms or category filters.</p>
           </CardContent>
         </Card>
       )}
@@ -215,40 +215,40 @@ export default function MarketplacePage() {
       {memoizedFilteredGoods.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {memoizedFilteredGoods.map((good) => (
-            <Card key={good.productId} className="overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col h-full">
+            <Card key={good.productId} className="overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col h-full group transform hover:-translate-y-1 border-border hover:border-primary/50">
               <Link href={`/marketplace/goods/${good.productId}`} className="block">
-                <div className="relative w-full h-48 bg-muted">
+                <div className="relative w-full h-52 bg-muted overflow-hidden">
                   <Image
                     src={good.images?.[0] || `https://picsum.photos/seed/${good.productId}/400/300`}
                     alt={good.productName}
                     layout="fill"
                     objectFit="cover"
-                    data-ai-hint={`${good.category} product`}
-                    className="group-hover:scale-105 transition-transform duration-300"
+                    data-ai-hint={`${good.category} marketplace`}
+                    className="group-hover:scale-105 transition-transform duration-500 ease-in-out"
                   />
                 </div>
               </Link>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 pt-4">
                 <Link href={`/marketplace/goods/${good.productId}`} className="block">
-                  <CardTitle className="text-lg font-semibold hover:text-primary truncate" title={good.productName}>
+                  <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate" title={good.productName}>
                     {good.productName}
                   </CardTitle>
                 </Link>
                 <CardDescription className="text-xs text-muted-foreground">{good.category}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 flex-grow">
-                <p className="text-sm text-muted-foreground h-10 overflow-hidden text-ellipsis">
-                  {good.description.substring(0, 60)}{good.description.length > 60 ? '...' : ''}
+                <p className="text-sm text-muted-foreground h-10 overflow-hidden text-ellipsis leading-tight">
+                  {good.description.substring(0, 70)}{good.description.length > 70 ? '...' : ''}
                 </p>
                 <div className="flex justify-between items-center pt-1">
                   <p className="text-xl font-bold text-primary">₹{good.price.toLocaleString()}</p>
-                  <span className="text-xs text-muted-foreground">Qty: {good.quantity}</span>
+                  {good.quantity && <span className="text-xs text-muted-foreground">Qty: {good.quantity}</span>}
                 </div>
               </CardContent>
-              <div className="p-4 border-t">
-                <Link href={`/marketplace/book-transport?goodsId=${good.productId}`} passHref legacyBehavior>
-                  <Button className="w-full" size="sm">
-                    Book Transport <ArrowRight className="ml-2 h-4 w-4" />
+              <div className="p-4 border-t mt-auto">
+                <Link href={`/marketplace/goods/${good.productId}`} passHref legacyBehavior>
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="sm">
+                    View Details <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
               </div>
@@ -259,7 +259,7 @@ export default function MarketplacePage() {
 
       {hasMore && !loading && memoizedFilteredGoods.length > 0 && (
         <div className="text-center mt-12">
-          <Button onClick={handleLoadMore} variant="outline" size="lg">
+          <Button onClick={handleLoadMore} variant="outline" size="lg" className="text-primary border-primary hover:bg-primary/10">
             Load More Goods
           </Button>
         </div>
@@ -267,9 +267,3 @@ export default function MarketplacePage() {
     </div>
   );
 }
-
-// Placeholder for individual good page and list good page
-// src/app/marketplace/goods/[id]/page.tsx
-// src/app/marketplace/list-good/page.tsx
-// src/app/marketplace/book-transport/page.tsx
-

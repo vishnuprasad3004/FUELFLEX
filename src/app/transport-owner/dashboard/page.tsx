@@ -6,7 +6,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, MapPin, AlertCircle, IndianRupee, ListChecks, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Image as ImageIcon } from 'lucide-react';
+import { Truck, Fuel, MapPin, AlertCircle, IndianRupee, ListChecks, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText } from 'lucide-react'; // Removed ImageIcon as next/image is used
 import { useEffect, useState, type ChangeEvent } from 'react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
@@ -14,17 +14,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // No longer needed for vehicle type
-import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-// import { VEHICLE_TYPES, type BookingVehicleType } from '@/models/booking'; // No longer needed
-import { uploadFile as uploadFileToStorage } from '@/services/storage-service'; // Mock storage service
+import { uploadFile as uploadFileToStorage } from '@/services/storage-service'; 
 
 interface Vehicle {
   id: string;
   name: string;
-  // type: BookingVehicleType; // Removed type
   registrationNumber: string;
   location: string; 
   fuelLevel: number; 
@@ -36,7 +33,6 @@ interface Vehicle {
   lastUpdated: string;
 }
 
-// Mock data for demonstration
 const initialMockVehicles: Vehicle[] = [
   { id: 'V001', name: 'Tata Ace Gold', registrationNumber: 'MH12AB1234', location: 'Mumbai, MH', fuelLevel: 75, fastagBalance: 1250, status: 'idle', imageUrl: 'https://picsum.photos/seed/tataacegold/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV001/200/300', dataAiHint: 'mini truck city', lastUpdated: '2 mins ago' },
   { id: 'V002', name: 'Ashok Leyland Dost+', registrationNumber: 'KA01CD5678', location: 'En route to Pune', fuelLevel: 40, fastagBalance: 800, status: 'in_transit', imageUrl: 'https://picsum.photos/seed/leylanddostplus/400/250', dataAiHint: 'light truck highway', lastUpdated: 'Now' },
@@ -45,9 +41,6 @@ const initialMockVehicles: Vehicle[] = [
 
 const vehicleRegistrationSchema = z.object({
   name: z.string().min(3, "Vehicle name must be at least 3 characters"),
-  // type: z.string().refine(val => VEHICLE_TYPES.includes(val as BookingVehicleType), { // Removed type
-  //   message: "Please select a valid vehicle type."
-  // }),
   registrationNumber: z.string().min(6, "Registration number is required (e.g., MH01AB1234)")
     .regex(/^[A-Z]{2}[0-9]{1,2}(?:[A-Z])?(?:[A-Z]*)?[0-9]{4}$/, "Invalid registration number format. E.g., MH01AB1234, DL1C1234, KA05N9876"),
 });
@@ -68,7 +61,6 @@ export default function TransportOwnerDashboardPage() {
   const {
     register,
     handleSubmit,
-    control,
     reset: resetForm,
     formState: { errors, isSubmitting: isFormSubmitting },
   } = useForm<VehicleRegistrationFormInputs>({
@@ -95,15 +87,22 @@ export default function TransportOwnerDashboardPage() {
   }
 
 
-  const getStatusColor = (status: Vehicle['status']) => {
+  const getStatusColorClasses = (status: Vehicle['status']) => {
     switch (status) {
-      case 'idle': return 'bg-blue-100 text-blue-700';
-      case 'in_transit': return 'bg-green-100 text-green-700';
-      case 'maintenance': return 'bg-orange-100 text-orange-700';
-      case 'offline': return 'bg-gray-100 text-gray-700';
-      default: return 'bg-slate-100 text-slate-700';
+      case 'idle': return 'bg-primary/20 text-primary-foreground dark:bg-primary/30 dark:text-primary-foreground'; // Theme primary (Blue)
+      case 'in_transit': return 'bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent-foreground'; // Theme accent (Teal)
+      case 'maintenance': return 'bg-yellow-400/20 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300'; // Explicit yellow for warning
+      case 'offline': return 'bg-muted text-muted-foreground';
+      default: return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'; // Fallback, ensure it's defined
     }
-  }
+  };
+
+  const getFuelProgressColor = (level: number) => {
+    if (level < 25) return '[&>div]:bg-destructive'; // Theme destructive
+    if (level < 50) return '[&>div]:bg-yellow-500'; // Explicit yellow for warning
+    return '[&>div]:bg-accent'; // Theme accent for good level
+  };
+
 
   const handleVehicleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVehicleImageFile(e.target.files[0]);
@@ -136,7 +135,6 @@ export default function TransportOwnerDashboardPage() {
     const newVehicle: Vehicle = {
       id: `V${String(vehicles.length + 1).padStart(3, '0')}`,
       name: data.name,
-      // type: data.type as BookingVehicleType, // Removed type
       registrationNumber: data.registrationNumber.toUpperCase(),
       location: 'Garage (New)', 
       fuelLevel: 100, 
@@ -144,7 +142,7 @@ export default function TransportOwnerDashboardPage() {
       status: 'idle',
       imageUrl: vehicleImageUrl,
       rcBookUrl: rcBookMockUrl,
-      dataAiHint: `generic vehicle`, // Updated dataAiHint
+      dataAiHint: `${data.name.split(' ')[0] || 'vehicle'} transport`, // Generic hint
       lastUpdated: 'Now',
     };
 
@@ -158,13 +156,13 @@ export default function TransportOwnerDashboardPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <Card className="mb-8 shadow-xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground">
+      <Card className="mb-8 shadow-xl bg-gradient-to-br from-primary via-primary/90 to-accent/50 text-primary-foreground border-primary/30">
         <CardHeader className="flex flex-row justify-between items-center">
             <div>
                 <CardTitle className="text-3xl font-bold">Transport Owner Dashboard</CardTitle>
-                <CardDescription className="text-primary-foreground/80">Manage your fleet, view real-time status, and track finances.</CardDescription>
+                <CardDescription className="text-primary-foreground/90">Manage your fleet, view real-time status, and track finances.</CardDescription>
             </div>
-            <Button onClick={fetchVehicleData} variant="secondary" size="sm" disabled={loading}>
+            <Button onClick={fetchVehicleData} variant="secondary" size="sm" disabled={loading} className="text-secondary-foreground hover:bg-secondary/80">
                 {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
                 Refresh Data
             </Button>
@@ -172,29 +170,29 @@ export default function TransportOwnerDashboardPage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="shadow-lg">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
-            <Truck className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Vehicles</CardTitle>
+            <Truck className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{vehicles.length}</div>
             <p className="text-xs text-muted-foreground">Active in your fleet</p>
           </CardContent>
         </Card>
-        <Card className="shadow-lg">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vehicles In Transit</CardTitle>
-            <MapPin className="h-5 w-5 text-green-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Vehicles In Transit</CardTitle>
+            <MapPin className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'in_transit').length}</div>
             <p className="text-xs text-muted-foreground">Currently on trips</p>
           </CardContent>
         </Card>
-        <Card className="shadow-lg">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Needs Attention</CardTitle>
             <AlertCircle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
@@ -209,10 +207,10 @@ export default function TransportOwnerDashboardPage() {
       <Separator className="my-8" />
 
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold">My Vehicle Fleet</h2>
+        <h2 className="text-2xl font-semibold text-foreground">My Vehicle Fleet</h2>
         <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
               <PlusCircle className="mr-2 h-5 w-5"/> Register New Vehicle
             </Button>
           </DialogTrigger>
@@ -227,22 +225,6 @@ export default function TransportOwnerDashboardPage() {
                 <Input id="name" {...register('name')} placeholder="e.g., Tata Ace Gold BS6" />
                 {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
               </div>
-              {/* <div> // Vehicle Type Select Removed
-                <Label htmlFor="type">Vehicle Type</Label>
-                <Controller
-                    name="type"
-                    control={control}
-                    render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger id="type"><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
-                        <SelectContent>
-                        {VEHICLE_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    )}
-                />
-                {errors.type && <p className="text-sm text-destructive mt-1">{errors.type.message}</p>}
-              </div> */}
               <div>
                 <Label htmlFor="registrationNumber">Registration Number</Label>
                 <Input id="registrationNumber" {...register('registrationNumber')} placeholder="e.g., MH01AB1234" />
@@ -262,7 +244,7 @@ export default function TransportOwnerDashboardPage() {
                 <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={() => { resetForm(); setVehicleImageFile(null); setRcBookFile(null); }}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit" disabled={isFormSubmitting}>
+                <Button type="submit" disabled={isFormSubmitting} className="bg-primary hover:bg-primary/90">
                   {isFormSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                   Add Vehicle
                 </Button>
@@ -280,13 +262,13 @@ export default function TransportOwnerDashboardPage() {
       )}
 
       {vehicles.length === 0 && !loading && (
-        <Card className="text-center py-10 shadow-md">
+        <Card className="text-center py-10 shadow-md border-dashed border-muted-foreground/50">
           <CardContent className="flex flex-col items-center">
             <Truck className="h-20 w-20 text-muted-foreground mb-6" />
             <p className="text-xl text-muted-foreground mb-2">Your fleet is currently empty.</p>
             <p className="text-sm text-muted-foreground mb-6">Register your vehicles to start managing them here.</p>
              <DialogTrigger asChild>
-                <Button onClick={() => setIsRegisterDialogOpen(true)}>
+                <Button onClick={() => setIsRegisterDialogOpen(true)} className="bg-accent text-accent-foreground hover:bg-accent/90">
                     <PlusCircle className="mr-2 h-5 w-5"/> Register Your First Vehicle
                 </Button>
             </DialogTrigger>
@@ -295,7 +277,7 @@ export default function TransportOwnerDashboardPage() {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {vehicles.map((vehicle) => (
-          <Card key={vehicle.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col group">
+          <Card key={vehicle.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col group border-primary/10 hover:border-primary/30">
             <div className="relative h-52 w-full">
                 <Image 
                     src={vehicle.imageUrl} 
@@ -305,38 +287,37 @@ export default function TransportOwnerDashboardPage() {
                     data-ai-hint={vehicle.dataAiHint}
                     className="transition-transform duration-300 group-hover:scale-105"
                 />
-                 <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusColor(vehicle.status)}`}>
+                 <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusColorClasses(vehicle.status)}`}>
                   {vehicle.status.replace('_', ' ')}
                  </div>
             </div>
             <CardHeader className="pb-3">
-              <CardTitle className="text-xl truncate" title={vehicle.name}>{vehicle.name}</CardTitle>
-              <CardDescription className="text-sm">
-                {/* {vehicle.type} -  // Removed type display */}
+              <CardTitle className="text-xl truncate text-foreground" title={vehicle.name}>{vehicle.name}</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
                  {vehicle.registrationNumber}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 flex-grow">
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center text-muted-foreground"><MapPin className="h-4 w-4 mr-2 text-sky-500" /> Location:</span>
-                <span className="font-semibold truncate" title={vehicle.location}>{vehicle.location}</span>
+                <span className="flex items-center text-muted-foreground"><MapPin className="h-4 w-4 mr-2 text-primary" /> Location:</span>
+                <span className="font-semibold truncate text-foreground" title={vehicle.location}>{vehicle.location}</span>
               </div>
               
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center text-muted-foreground"><Fuel className="h-4 w-4 mr-2 text-orange-500" /> Fuel Level:</span>
-                  <span className={`font-semibold ${vehicle.fuelLevel < 25 ? 'text-destructive' : vehicle.fuelLevel < 50 ? 'text-yellow-500' : 'text-green-600'}`}>{vehicle.fuelLevel}%</span>
+                  <span className={`font-semibold ${vehicle.fuelLevel < 25 ? 'text-destructive' : vehicle.fuelLevel < 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-accent'}`}>{vehicle.fuelLevel}%</span>
                 </div>
                 <Progress 
                     value={vehicle.fuelLevel} 
-                    className={`h-2 ${vehicle.fuelLevel < 25 ? '[&>div]:bg-destructive' : vehicle.fuelLevel < 50 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'}`} 
+                    className={`h-2 ${getFuelProgressColor(vehicle.fuelLevel)}`} 
                     aria-label={`Fuel level ${vehicle.fuelLevel}%`}
                 />
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center text-muted-foreground"><IndianRupee className="h-4 w-4 mr-2 text-emerald-600" /> FASTag Balance:</span>
-                <span className={`font-semibold ${vehicle.fastagBalance < 500 ? 'text-destructive': 'text-emerald-700'}`}>₹{vehicle.fastagBalance.toLocaleString()}</span>
+                <span className="flex items-center text-muted-foreground"><IndianRupee className="h-4 w-4 mr-2 text-green-600" /> FASTag Balance:</span>
+                <span className={`font-semibold ${vehicle.fastagBalance < 500 ? 'text-destructive': 'text-green-700 dark:text-green-500'}`}>₹{vehicle.fastagBalance.toLocaleString()}</span>
               </div>
               {vehicle.rcBookUrl && (
                 <div className="flex items-center justify-between text-sm">
@@ -344,7 +325,7 @@ export default function TransportOwnerDashboardPage() {
                     <Button 
                         variant="link" 
                         size="sm" 
-                        className="p-0 h-auto text-indigo-600 hover:text-indigo-800"
+                        className="p-0 h-auto text-primary hover:underline"
                         onClick={() => {
                             toast({title: "View RC Book (Mock)", description: `Displaying RC book for ${vehicle.name}. Mock URL: ${vehicle.rcBookUrl}`});
                             window.open(vehicle.rcBookUrl, '_blank');
@@ -354,13 +335,13 @@ export default function TransportOwnerDashboardPage() {
                     </Button>
                 </div>
               )}
-              <div className="text-xs text-muted-foreground text-right">
+              <div className="text-xs text-muted-foreground text-right pt-2">
                 Last updated: {vehicle.lastUpdated}
               </div>
             </CardContent>
-             <CardFooter className="border-t pt-4">
-                <Button variant="outline" size="sm" className="flex-1 mr-2" onClick={() => toast({title: "Vehicle Details", description:`Showing details for ${vehicle.name} (${vehicle.registrationNumber})`})}>View Details</Button>
-                <Button size="sm" className="flex-1" onClick={() => toast({title: "Manage Vehicle", description:`Managing options for ${vehicle.name}`})}>Manage</Button>
+             <CardFooter className="border-t pt-4 bg-muted/30">
+                <Button variant="outline" size="sm" className="flex-1 mr-2 hover:bg-secondary/70" onClick={() => toast({title: "Vehicle Details", description:`Showing details for ${vehicle.name} (${vehicle.registrationNumber})`})}>View Details</Button>
+                <Button size="sm" className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => toast({title: "Manage Vehicle", description:`Managing options for ${vehicle.name}`})}>Manage</Button>
               </CardFooter>
           </Card>
         ))}

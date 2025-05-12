@@ -306,20 +306,70 @@ export default function AdminDashboardPage() {
   const memoizedFilteredBookings = useMemo(() => filteredBookings, [filteredBookings]);
   const memoizedFilteredUsers = useMemo(() => filteredUsers, [filteredUsers]);
 
+  const getBookingStatusBadgeStyle = (status: BookingStatus) => {
+    switch (status) {
+      case BookingStatus.COMPLETED:
+      case BookingStatus.DELIVERED:
+        return 'bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent-foreground'; // Teal for success
+      case BookingStatus.CANCELLED_BY_ADMIN:
+      case BookingStatus.CANCELLED_BY_BUYER:
+      case BookingStatus.CANCELLED_BY_SELLER:
+      case BookingStatus.FAILED:
+        return 'bg-destructive/20 text-destructive-foreground dark:bg-destructive/30 dark:text-destructive-foreground'; // Red for destructive
+      case BookingStatus.IN_TRANSIT:
+      case BookingStatus.AWAITING_PICKUP:
+        return 'bg-primary/20 text-primary-foreground dark:bg-primary/30 dark:text-primary-foreground'; // Blue for in-progress/info
+      case BookingStatus.PENDING:
+      case BookingStatus.CONFIRMED:
+      case BookingStatus.ON_HOLD:
+      case BookingStatus.PAYMENT_DUE: // Yellowish/Orange - using muted as fallback
+        return 'bg-yellow-400/20 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300'; // Explicit yellow, as theme lacks it
+      default:
+        return 'bg-muted/50 text-muted-foreground';
+    }
+  };
+
+  const getRepaymentStatusBadgeStyle = (status: RepaymentStatus) => {
+     switch (status) {
+      case RepaymentStatus.PAID:
+        return 'bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent-foreground'; // Teal for success
+      case RepaymentStatus.OVERDUE:
+        return 'bg-destructive/20 text-destructive-foreground dark:bg-destructive/30 dark:text-destructive-foreground'; // Red for destructive
+      case RepaymentStatus.PENDING:
+      case RepaymentStatus.PARTIALLY_PAID:
+         return 'bg-yellow-400/20 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300'; // Explicit yellow
+      default: // NOT_APPLICABLE
+        return 'bg-muted/50 text-muted-foreground';
+    }
+  }
+
+   const getUserRoleBadgeStyle = (role: UserRoleEnum) => {
+    switch (role) {
+      case UserRoleEnum.ADMIN:
+        return 'bg-accent text-accent-foreground'; // Teal
+      case UserRoleEnum.TRANSPORT_OWNER:
+        return 'bg-primary text-primary-foreground'; // Blue
+      case UserRoleEnum.BUYER_SELLER:
+        return 'bg-secondary text-secondary-foreground'; // Light Gray/Blue
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <Card className="mb-8 shadow-xl">
+      <Card className="mb-8 shadow-xl border-primary/30">
         <CardHeader>
           <CardTitle className="text-3xl font-bold">Admin Dashboard</CardTitle>
-          <CardDescription>Monitor trips, repayments, users, and platform activity.</CardDescription>
+          <CardDescription className="text-muted-foreground">Monitor trips, repayments, users, and platform activity.</CardDescription>
         </CardHeader>
       </Card>
 
       {/* Trip Monitoring Section */}
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center"><FilterIcon className="mr-2 h-5 w-5" /> Trip Filters</CardTitle>
+          <CardTitle className="flex items-center"><FilterIcon className="mr-2 h-5 w-5 text-primary" /> Trip Filters</CardTitle>
            <Button onClick={refreshBookings} variant="outline" size="sm" disabled={loadingBookings}><RefreshCw className="h-4 w-4 mr-2"/>Refresh Trips</Button>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -342,46 +392,45 @@ export default function AdminDashboardPage() {
         </CardContent>
          <CardContent>
           {loadingBookings && memoizedFilteredBookings.length === 0 ? (
-            <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2">Loading bookings...</p></div>
+            <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading bookings...</p></div>
           ) : !loadingBookings && memoizedFilteredBookings.length === 0 ? (
              <p className="text-center text-muted-foreground py-4">No bookings match current filters or no bookings found.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead onClick={() => handleBookingSort('bookingId')} className="cursor-pointer">Trip ID <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleBookingSort('bookingId')} className="cursor-pointer hover:bg-muted/50 transition-colors">Trip ID <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
                     <TableHead>Goods Type</TableHead>
-                    {/* <TableHead>Vehicle</TableHead> // Removed Vehicle Column */}
-                    <TableHead onClick={() => handleBookingSort('estimatedTransportCost')} className="cursor-pointer">Est. Cost <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                    <TableHead onClick={() => handleBookingSort('status')} className="cursor-pointer">Status <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                     <TableHead onClick={() => handleBookingSort('repayStatus')} className="cursor-pointer">Repayment <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                    <TableHead onClick={() => handleBookingSort('createdAt')} className="cursor-pointer">Booked On <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleBookingSort('estimatedTransportCost')} className="cursor-pointer hover:bg-muted/50 transition-colors">Est. Cost <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleBookingSort('status')} className="cursor-pointer hover:bg-muted/50 transition-colors">Status <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                     <TableHead onClick={() => handleBookingSort('repayStatus')} className="cursor-pointer hover:bg-muted/50 transition-colors">Repayment <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleBookingSort('createdAt')} className="cursor-pointer hover:bg-muted/50 transition-colors">Booked On <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {memoizedFilteredBookings.map((booking) => (
-                    <TableRow key={booking.bookingId}>
+                    <TableRow key={booking.bookingId} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium">{booking.bookingId ? booking.bookingId.substring(0,8) + '...' : 'N/A'}</TableCell>
                       <TableCell>{(booking as any).goodsType || 'N/A'}</TableCell>
-                      {/* <TableCell>{booking.vehicleType || 'N/A'}</TableCell> // Removed Vehicle Cell */}
                       <TableCell>₹{booking.estimatedTransportCost?.toLocaleString() || 'N/A'}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap 
-                        ${booking.status === BookingStatus.COMPLETED ? 'bg-green-100 text-green-700' : 
-                          booking.status === BookingStatus.CANCELLED_BY_ADMIN || booking.status === BookingStatus.CANCELLED_BY_BUYER || booking.status === BookingStatus.CANCELLED_BY_SELLER ? 'bg-red-100 text-red-700' :
-                          booking.status === BookingStatus.IN_TRANSIT ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {booking.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span></TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${booking.repayStatus === RepaymentStatus.PAID ? 'bg-green-100 text-green-700' : booking.repayStatus === RepaymentStatus.OVERDUE ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {booking.repayStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span></TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getBookingStatusBadgeStyle(booking.status)}`}>
+                          {booking.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getRepaymentStatusBadgeStyle(booking.repayStatus)}`}>
+                          {booking.repayStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         {booking.createdAt && (booking.createdAt as any).seconds ? format(new Date((booking.createdAt as any).seconds * 1000), 'PPp') : booking.createdAt instanceof Date ? format(booking.createdAt, 'PPp') : 'N/A'}
                       </TableCell>
                       <TableCell className="space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => toast({title: "View Booking", description: `Details for ${booking.bookingId}`})}><Eye className="h-4 w-4"/></Button>
-                        <Button variant="ghost" size="sm" onClick={() => toast({title: "Edit Booking", description: `Editing ${booking.bookingId}`})}><Edit3 className="h-4 w-4"/></Button>
+                        <Button variant="ghost" size="sm" onClick={() => toast({title: "View Booking", description: `Details for ${booking.bookingId}`})}><Eye className="h-4 w-4 text-primary"/></Button>
+                        <Button variant="ghost" size="sm" onClick={() => toast({title: "Edit Booking", description: `Editing ${booking.bookingId}`})}><Edit3 className="h-4 w-4 text-primary"/></Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -400,9 +449,9 @@ export default function AdminDashboardPage() {
       <Separator className="my-8" />
 
       {/* User Management Section */}
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5" /> User Management</CardTitle>
+            <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary" /> User Management</CardTitle>
             <Button onClick={refreshUsers} variant="outline" size="sm" disabled={loadingUsers}><RefreshCw className="h-4 w-4 mr-2"/>Refresh Users</Button>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -417,37 +466,37 @@ export default function AdminDashboardPage() {
         </CardContent>
         <CardContent>
           {loadingUsers && memoizedFilteredUsers.length === 0 ? (
-            <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2">Loading users...</p></div>
+            <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading users...</p></div>
           ) : !loadingUsers && memoizedFilteredUsers.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">No users match current filters or no users found.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead onClick={() => handleUserSort('uid')} className="cursor-pointer">User ID <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                    <TableHead onClick={() => handleUserSort('email')} className="cursor-pointer">Email <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                    <TableHead onClick={() => handleUserSort('displayName')} className="cursor-pointer">Display Name <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                    <TableHead onClick={() => handleUserSort('role')} className="cursor-pointer">Role <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
-                    <TableHead onClick={() => handleUserSort('createdAt')} className="cursor-pointer">Joined On <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleUserSort('uid')} className="cursor-pointer hover:bg-muted/50 transition-colors">User ID <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleUserSort('email')} className="cursor-pointer hover:bg-muted/50 transition-colors">Email <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleUserSort('displayName')} className="cursor-pointer hover:bg-muted/50 transition-colors">Display Name <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleUserSort('role')} className="cursor-pointer hover:bg-muted/50 transition-colors">Role <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
+                    <TableHead onClick={() => handleUserSort('createdAt')} className="cursor-pointer hover:bg-muted/50 transition-colors">Joined On <ArrowUpDown size={16} className="inline ml-1" /></TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {memoizedFilteredUsers.map((user) => (
-                    <TableRow key={user.uid}>
+                    <TableRow key={user.uid} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium">{user.uid ? user.uid.substring(0,10) + '...' : 'N/A'}</TableCell>
                       <TableCell>{user.email || 'N/A'}</TableCell>
                       <TableCell>{user.displayName || 'N/A'}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${user.role === UserRoleEnum.ADMIN ? 'bg-purple-100 text-purple-700' : user.role === UserRoleEnum.TRANSPORT_OWNER ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                      <TableCell><span className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getUserRoleBadgeStyle(user.role)}`}>
                         {user.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>
                       </TableCell>
                       <TableCell>
                         {user.createdAt && (user.createdAt as any).seconds ? format(new Date((user.createdAt as any).seconds * 1000), 'PPp') : user.createdAt instanceof Date ? format(user.createdAt, 'PPp') : 'N/A'}
                       </TableCell>
                       <TableCell className="space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => toast({title: "View User", description: `Details for ${user.email}`})}><Eye className="h-4 w-4"/></Button>
-                        <Button variant="ghost" size="sm" onClick={() => toast({title: "Edit User Role", description: `Editing role for ${user.email}`})}><Edit3 className="h-4 w-4"/></Button>
+                        <Button variant="ghost" size="sm" onClick={() => toast({title: "View User", description: `Details for ${user.email}`})}><Eye className="h-4 w-4 text-primary"/></Button>
+                        <Button variant="ghost" size="sm" onClick={() => toast({title: "Edit User Role", description: `Editing role for ${user.email}`})}><Edit3 className="h-4 w-4 text-primary"/></Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -466,10 +515,10 @@ export default function AdminDashboardPage() {
       <Separator className="my-8" />
 
       {/* File Management Section (Mock Storage Demo) */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>File Management (Mock Storage Demo)</CardTitle>
-          <CardDescription>
+          <CardTitle className="flex items-center"><UploadCloud className="mr-2 h-5 w-5 text-primary"/>File Management (Mock Storage Demo)</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Demonstrates file operations using a MOCK storage service. 
             Actual file uploads to cloud storage are NOT occurring with this setup.
           </CardDescription>
@@ -496,8 +545,8 @@ export default function AdminDashboardPage() {
           </div>
            {fileUrl && (
             <div className="mt-2">
-              <p>Last simulated/retrieved file mock URL:</p>
-              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{fileUrl}</a>
+              <p className="text-sm text-muted-foreground">Last simulated/retrieved file mock URL:</p>
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all text-sm">{fileUrl}</a>
             </div>
           )}
           <div className="mt-4 space-y-2">
@@ -513,29 +562,29 @@ export default function AdminDashboardPage() {
                 <Button onClick={() => {
                     const pathInput = document.getElementById('list-path-input') as HTMLInputElement;
                     handleListItems(pathInput?.value || '');
-                }}>
+                }} variant="outline">
                     List Mock Items
                 </Button>
             </div>
             { (listedItems.files.length > 0 || listedItems.folders.length > 0) && (
-              <Card className="p-4 bg-muted/50 max-h-60 overflow-y-auto">
-                <h4 className="font-semibold">Mock Folders:</h4>
+              <Card className="p-4 bg-muted/50 max-h-60 overflow-y-auto mt-2 rounded-md">
+                <h4 className="font-semibold text-sm">Mock Folders:</h4>
                 {listedItems.folders.length > 0 ? (
-                  <ul className="list-disc pl-5 text-sm">
+                  <ul className="list-disc pl-5 text-xs text-muted-foreground">
                     {listedItems.folders.map(folder => <li key={folder}>{folder}</li>)}
                   </ul>
-                ) : <p className="text-sm text-muted-foreground">No mock folders found.</p>}
-                <h4 className="font-semibold mt-2">Mock Files:</h4>
+                ) : <p className="text-xs text-muted-foreground">No mock folders found.</p>}
+                <h4 className="font-semibold mt-2 text-sm">Mock Files:</h4>
                 {listedItems.files.length > 0 ? (
-                  <ul className="list-disc pl-5 text-sm">
+                  <ul className="list-disc pl-5 text-xs text-muted-foreground">
                     {listedItems.files.map(fileItem => <li key={fileItem}>{fileItem}</li>)}
                   </ul>
-                ) : <p className="text-sm text-muted-foreground">No mock files found.</p>}
+                ) : <p className="text-xs text-muted-foreground">No mock files found.</p>}
               </Card>
             )}
           </div>
           {storageMessage && (
-            <p className={`mt-4 p-2 rounded text-sm ${storageMessage.includes('failed') || storageMessage.includes('Error') ? 'bg-destructive/10 text-destructive' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+            <p className={`mt-4 p-3 rounded-md text-sm ${storageMessage.includes('failed') || storageMessage.includes('Error') ? 'bg-destructive/10 text-destructive dark:bg-destructive/20' : 'bg-accent/10 text-accent-foreground dark:bg-accent/20 dark:text-accent-foreground'}`}>
               {storageMessage}
             </p>
           )}

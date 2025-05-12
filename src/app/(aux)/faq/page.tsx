@@ -1,3 +1,4 @@
+
 // src/app/(aux)/faq/page.tsx
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -52,21 +53,23 @@ export default function FAQPage() {
   return (
     <div className="container mx-auto py-12 px-4 max-w-3xl">
       <Link href="/" legacyBehavior>
-        <Button variant="outline" className="mb-8 group">
+        <Button variant="outline" className="mb-8 group hover:bg-secondary">
           <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
         </Button>
       </Link>
-      <Card className="shadow-xl border-primary/20">
+      <Card className="shadow-xl border-primary/20 hover:shadow-2xl transition-shadow">
         <CardHeader className="text-center">
-          <HelpCircle className="h-16 w-16 text-primary mx-auto mb-4" />
-          <CardTitle className="text-3xl font-bold tracking-tight">Frequently Asked Questions</CardTitle>
+          <div className="inline-block p-4 bg-primary/10 rounded-full ring-4 ring-primary/20 mb-4">
+            <HelpCircle className="h-16 w-16 text-primary" />
+          </div>
+          <CardTitle className="text-3xl font-bold tracking-tight text-foreground">Frequently Asked Questions</CardTitle>
           <CardDescription className="text-lg text-muted-foreground">Find answers to common questions about FuelFlex.</CardDescription>
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
-              <AccordionItem value={`item-${index}`} key={index} className="border-b last:border-b-0">
-                <AccordionTrigger className="text-left hover:no-underline text-md font-medium py-5">
+              <AccordionItem value={`item-${index}`} key={index} className="border-b border-border last:border-b-0">
+                <AccordionTrigger className="text-left hover:no-underline text-md font-medium py-5 text-foreground hover:text-primary">
                   {faq.question}
                 </AccordionTrigger>
                 <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground pb-5 leading-relaxed">
@@ -80,10 +83,9 @@ export default function FAQPage() {
        <div className="mt-12 text-center">
         <p className="text-muted-foreground">Can&apos;t find your answer or need more help?</p>
         <Link href="/contact" passHref legacyBehavior>
-          <Button variant="link" className="text-lg text-primary hover:underline">Contact Our Support Team</Button>
+          <Button variant="link" className="text-lg text-primary hover:underline hover:text-accent">Contact Our Support Team</Button>
         </Link>
       </div>
     </div>
   );
 }
-```

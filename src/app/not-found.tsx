@@ -1,8 +1,8 @@
 // src/app/not-found.tsx
 import Link from 'next/link';
-import { Button } from '@/components/ui/button'; // Corrected path
+import { Button } from '@/components/ui/button'; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, SearchX } from 'lucide-react'; // Added ArrowLeft
+import { ArrowLeft, SearchX } from 'lucide-react'; 
 import Image from 'next/image';
 
 export default function NotFound() {
@@ -35,7 +35,7 @@ export default function NotFound() {
             </div>
           </div>
           <Link href="/" passHref legacyBehavior>
-            <Button size="lg" className="w-full sm:w-auto text-lg py-3 bg-primary hover:bg-primary/90 transition-all duration-300 ease-in-out transform hover:scale-105">
+            <Button size="lg" className="w-full sm:w-auto text-lg py-3 bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 ease-in-out transform hover:scale-105">
               <ArrowLeft className="mr-2 h-5 w-5"/>
               Return to Homepage
             </Button>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,10 +8,11 @@ import { firestore } from '@/firebase/firebase-config';
 import type { Good } from '@/models/goods';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Truck, ShoppingCart, MapPin, Phone, Tag, Package } from 'lucide-react';
+import { Loader2, ArrowLeft, Truck, MapPin, Tag, Package, CalendarDays } from 'lucide-react'; // Removed ShoppingCart, Phone. Added CalendarDays
 import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/use-toast';
+import { format } from 'date-fns';
 
 export default function GoodDetailPage() {
   const params = useParams();
@@ -37,7 +39,7 @@ export default function GoodDetailPage() {
               description: "This good item could not be found.",
               variant: "destructive",
             });
-            router.push('/marketplace'); // Redirect if good not found
+            router.push('/marketplace'); 
           }
         } catch (error) {
           console.error("Error fetching good details:", error);
@@ -52,7 +54,6 @@ export default function GoodDetailPage() {
       };
       fetchGood();
     } else {
-      // Handle case where ID is not available or invalid, though router should catch this earlier
       setLoading(false);
       toast({ title: "Invalid ID", description: "No good ID provided.", variant: "destructive" });
       router.push('/marketplace');
@@ -61,16 +62,16 @@ export default function GoodDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg">Loading good details...</p>
+        <p className="ml-4 text-lg text-muted-foreground">Loading good details...</p>
       </div>
     );
   }
 
   if (!good) {
-    return ( // Fallback for when good is null after loading (e.g., not found and redirect hasn't completed)
-      <div className="flex items-center justify-center min-h-screen">
+    return ( 
+      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <p className="text-lg text-muted-foreground">Good item not found or error loading details.</p>
       </div>
     );
@@ -78,65 +79,70 @@ export default function GoodDetailPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <Button variant="outline" onClick={() => router.back()} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Marketplace
+      <Button variant="outline" onClick={() => router.back()} className="mb-6 group hover:bg-secondary">
+        <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to Marketplace
       </Button>
 
-      <Card className="overflow-hidden shadow-xl">
+      <Card className="overflow-hidden shadow-xl border-primary/20">
         <div className="grid md:grid-cols-2 gap-0">
-          {/* Image Gallery (simplified) */}
-          <div className="relative h-96 md:h-auto bg-muted">
+          {/* Image Gallery */}
+          <div className="relative h-80 md:h-[500px] bg-muted group">
             <Image
               src={good.images?.[0] || `https://picsum.photos/seed/${good.productId}/800/600`}
               alt={good.productName}
               layout="fill"
               objectFit="cover"
-              data-ai-hint={`${good.category} product detail`}
+              className="transition-transform duration-500 group-hover:scale-105"
+              data-ai-hint={`${good.category} product`}
             />
-            {/* TODO: Add image carousel if multiple images */}
+             {good.images && good.images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-xs">
+                    1 / {good.images.length}
+                </div>
+             )}
           </div>
 
           {/* Product Details */}
-          <div className="p-6 md:p-8 flex flex-col">
+          <div className="p-6 md:p-8 flex flex-col bg-card">
             <CardHeader className="p-0 mb-4">
-              <CardTitle className="text-3xl font-bold">{good.productName}</CardTitle>
-              <CardDescription className="text-lg text-primary">₹{good.price.toLocaleString()}</CardDescription>
+              <CardTitle className="text-3xl lg:text-4xl font-bold text-foreground">{good.productName}</CardTitle>
+              <CardDescription className="text-2xl text-primary font-semibold mt-1">₹{good.price.toLocaleString()}</CardDescription>
             </CardHeader>
 
-            <CardContent className="p-0 space-y-4 flex-grow">
+            <CardContent className="p-0 space-y-5 flex-grow">
               <div className="flex items-center text-sm text-muted-foreground">
-                <Tag className="mr-2 h-4 w-4" /> Category: <span className="ml-1 font-medium text-foreground">{good.category}</span>
+                <Tag className="mr-3 h-5 w-5 text-primary" /> Category: <span className="ml-1 font-medium text-foreground">{good.category}</span>
               </div>
               {good.quantity && (
                 <div className="flex items-center text-sm text-muted-foreground">
-                  <Package className="mr-2 h-4 w-4" /> Quantity Available: <span className="ml-1 font-medium text-foreground">{good.quantity}</span>
+                  <Package className="mr-3 h-5 w-5 text-primary" /> Quantity Available: <span className="ml-1 font-medium text-foreground">{good.quantity}</span>
                 </div>
               )}
               
-              <p className="text-base leading-relaxed">{good.description}</p>
+              <p className="text-base leading-relaxed text-foreground/90">{good.description}</p>
 
               {good.weightKg && (
-                <p className="text-sm text-muted-foreground">Approx. Weight: {good.weightKg} kg</p>
+                <p className="text-sm text-muted-foreground">Approx. Weight: <span className="font-medium text-foreground">{good.weightKg} kg</span></p>
               )}
 
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold mb-2 text-md">Seller Information</h3>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="mr-2 h-4 w-4" /> Pickup Location: <span className="ml-1 font-medium text-foreground">{good.location.address}</span>
-                </div>
-                {/* Contact information display removed */}
-                {/* {good.contact && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Phone className="mr-2 h-4 w-4" /> Contact: <span className="ml-1 font-medium text-foreground">{good.contact}</span>
+              <div className="pt-4 border-t mt-5">
+                <h3 className="font-semibold mb-3 text-md text-foreground">Seller &amp; Pickup Information</h3>
+                <div className="flex items-start text-sm text-muted-foreground mb-2">
+                  <MapPin className="mr-3 h-5 w-5 text-primary flex-shrink-0 mt-0.5" /> 
+                  <div>
+                    <span className="font-medium text-foreground block">Pickup Location:</span>
+                    {good.location.address}
                   </div>
-                )} */}
-                 <p className="text-xs text-muted-foreground mt-1">Posted on: {new Date((good.postedAt as any).seconds * 1000).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center text-sm text-muted-foreground">
+                    <CalendarDays className="mr-3 h-5 w-5 text-primary" /> Posted on: <span className="ml-1 font-medium text-foreground">{format(new Date((good.postedAt as any).seconds * 1000), 'PPP')}</span>
+                </div>
               </div>
             </CardContent>
             
-            <div className="mt-auto pt-6">
+            <div className="mt-auto pt-8">
               <Link href={`/marketplace/book-transport?goodsId=${good.productId}`} passHref legacyBehavior>
-                <Button size="lg" className="w-full">
+                <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-base py-3">
                   <Truck className="mr-2 h-5 w-5" /> Book Transport for this Item
                 </Button>
               </Link>

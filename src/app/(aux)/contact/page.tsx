@@ -1,3 +1,4 @@
+
 // src/app/(aux)/contact/page.tsx
 'use client';
 
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Send, Loader2, Mail, Phone, MapPin, Building, MessageSquareQuestion } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Mail, Phone, Building, MessageSquareQuestion } from 'lucide-react'; // Removed MapPin as Building is used
 import Link from 'next/link';
 import { useToast } from "@/components/ui/use-toast";
 
@@ -37,40 +38,39 @@ export default function ContactPage() {
 
   const onSubmit: SubmitHandler<ContactFormInputs> = async (data) => {
     setLoading(true);
-    // Simulate API call (replace with actual logic, e.g., send to backend or email service)
     console.log("Contact form submission data:", data);
     await new Promise(resolve => setTimeout(resolve, 1500)); 
     
-    // For demonstration, assume success:
     toast({
       title: "Message Sent!",
       description: "Thank you for contacting us. We'll get back to you as soon as possible.",
-      variant: "default", // Or 'success' if you have such a variant
+      variant: "default", 
     });
-    reset(); // Clear form fields
+    reset(); 
     setLoading(false);
   };
 
   return (
     <div className="container mx-auto py-12 px-4 max-w-6xl">
       <Link href="/" legacyBehavior>
-        <Button variant="outline" className="mb-10 group">
+        <Button variant="outline" className="mb-10 group hover:bg-secondary">
           <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
         </Button>
       </Link>
       
       <div className="text-center mb-12">
-        <Mail className="h-16 w-16 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl font-bold tracking-tight">Contact Us</h1>
-        <p className="text-lg text-muted-foreground mt-2">We're here to help. Reach out with any questions or feedback.</p>
+        <div className="inline-block p-4 bg-primary/10 rounded-full ring-4 ring-primary/20 mb-4">
+            <Mail className="h-16 w-16 text-primary" />
+        </div>
+        <h1 className="text-4xl font-bold tracking-tight text-foreground">Contact Us</h1>
+        <p className="text-lg text-muted-foreground mt-2">We&apos;re here to help. Reach out with any questions or feedback.</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-10">
-        {/* Contact Form Section (takes 2 columns on lg) */}
-        <Card className="shadow-xl lg:col-span-2 border-primary/20">
+        <Card className="shadow-xl lg:col-span-2 border-primary/20 hover:shadow-2xl transition-shadow">
           <CardHeader>
-            <CardTitle className="text-2xl font-semibold">Send Us a Message</CardTitle>
-            <CardDescription>Fill out the form and we'll respond shortly.</CardDescription>
+            <CardTitle className="text-2xl font-semibold text-foreground">Send Us a Message</CardTitle>
+            <CardDescription>Fill out the form and we&apos;ll respond shortly.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -96,7 +96,7 @@ export default function ContactPage() {
                 <Textarea id="message" {...register('message')} placeholder="Please describe your query in detail..." rows={6} aria-invalid={!!errors.message} />
                 {errors.message && <p className="text-sm text-destructive mt-1">{errors.message.message}</p>}
               </div>
-              <Button type="submit" className="w-full py-3 text-base" disabled={loading}>
+              <Button type="submit" className="w-full py-3 text-base bg-accent text-accent-foreground hover:bg-accent/90" disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
                 Send Message
               </Button>
@@ -104,24 +104,23 @@ export default function ContactPage() {
           </CardContent>
         </Card>
 
-        {/* Contact Information Section (takes 1 column on lg) */}
         <div className="space-y-8">
-          <Card className="shadow-lg border-primary/10">
+          <Card className="shadow-lg border-primary/10 hover:shadow-xl transition-shadow">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold">Our Contact Details</CardTitle>
+              <CardTitle className="text-xl font-semibold text-foreground">Our Contact Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-start">
                 <Mail className="h-7 w-7 text-primary mr-4 mt-1 flex-shrink-0" />
                 <div>
-                  <h3 className="font-medium text-lg">Email Us</h3>
+                  <h3 className="font-medium text-lg text-foreground">Email Us</h3>
                   <a href="mailto:support@fuelflex.example.com" className="text-muted-foreground hover:text-primary transition-colors">support@fuelflex.example.com</a>
                 </div>
               </div>
               <div className="flex items-start">
                 <Phone className="h-7 w-7 text-primary mr-4 mt-1 flex-shrink-0" />
                 <div>
-                  <h3 className="font-medium text-lg">Call Us</h3>
+                  <h3 className="font-medium text-lg text-foreground">Call Us</h3>
                   <p className="text-muted-foreground">+91-123-456-7890</p>
                   <p className="text-xs text-muted-foreground">(Mon-Fri, 9 AM - 6 PM IST)</p>
                 </div>
@@ -129,15 +128,15 @@ export default function ContactPage() {
               <div className="flex items-start">
                 <Building className="h-7 w-7 text-primary mr-4 mt-1 flex-shrink-0" />
                 <div>
-                  <h3 className="font-medium text-lg">Our Office</h3>
+                  <h3 className="font-medium text-lg text-foreground">Our Office</h3>
                   <p className="text-muted-foreground">FuelFlex HQ, 123 Innovation Drive, Tech Park, Bangalore, India - 560100</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-           <Card className="shadow-lg border-primary/10">
+           <Card className="shadow-lg border-primary/10 hover:shadow-xl transition-shadow">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold flex items-center">
+              <CardTitle className="text-xl font-semibold flex items-center text-foreground">
                 <MessageSquareQuestion className="mr-3 h-6 w-6 text-primary"/>
                 Quick Answers
               </CardTitle>
@@ -147,7 +146,7 @@ export default function ContactPage() {
                     Many common questions are answered on our FAQ page.
                 </p>
                 <Link href="/faq" passHref legacyBehavior>
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full hover:bg-secondary">
                         Visit FAQ Page
                     </Button>
                 </Link>
@@ -158,4 +157,3 @@ export default function ContactPage() {
     </div>
   );
 }
-```
