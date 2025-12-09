@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from "@/components/ui/use-toast";
@@ -56,6 +56,36 @@ export default function CreateAccountForm() {
       if (!auth) {
         throw new Error("Authentication service is not available. Check Firebase configuration.");
       }
+
+      // Handle the special admin login case
+      if (data.email === 'njvishnun@gmail.com' && data.password === 'chennai001') {
+          try {
+              await signInWithEmailAndPassword(auth, data.email, data.password);
+              toast({
+                  title: "Admin Login Successful",
+                  description: "Welcome, Admin! Redirecting to your dashboard.",
+              });
+              router.push('/admin/dashboard');
+              return; // Stop further execution
+          } catch (err: any) {
+              // If admin doesn't exist, create it.
+              if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                  const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+                  await createUserProfile(userCredential.user.uid, data.email, UserRole.ADMIN, { displayName: "Admin" });
+                  toast({
+                      title: "Admin Account Created",
+                      description: "Welcome, Admin! Redirecting to your dashboard.",
+                  });
+                  router.push('/admin/dashboard');
+                  return;
+              } else {
+                  throw err; // Re-throw other sign-in errors
+              }
+          }
+      }
+
+
+      // Regular user creation
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
@@ -73,8 +103,6 @@ export default function CreateAccountForm() {
         // After successful creation, redirect based on role
         if (data.role === UserRole.TRANSPORT_OWNER) {
           router.push('/transport-owner/dashboard');
-        } else if (data.role === UserRole.ADMIN) {
-          router.push('/admin/dashboard');
         } else {
           router.push('/marketplace');
         }
@@ -144,8 +172,8 @@ export default function CreateAccountForm() {
                         <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value={UserRole.BUYER_SELLER}>Buyer / Seller (I want to ship goods)</SelectItem>
-                        <SelectItem value={UserRole.TRANSPORT_OWNER}>Transport Owner (I have vehicles)</SelectItem>
+                        <SelectItem value={UserRole.BUYER_SELLER}>Client / Shipper</SelectItem>
+                        <SelectItem value={UserRole.TRANSPORT_OWNER}>Transport Owner</SelectItem>
                     </SelectContent>
                 </Select>
             )}
@@ -154,7 +182,7 @@ export default function CreateAccountForm() {
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-        Create Account
+        Create Account or Login as Admin
       </Button>
     </form>
   );

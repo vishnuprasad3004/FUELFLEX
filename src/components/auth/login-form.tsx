@@ -8,11 +8,13 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, LogInIcon } from 'lucide-react';
+import { createUserProfile } from '@/services/user-service';
+import { UserRole } from '@/models/user';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -39,13 +41,41 @@ export default function LoginForm() {
     setLoading(true);
     setError(null);
     try {
+       // Special case for admin login
+      if (data.email === 'njvishnun@gmail.com' && data.password === 'chennai001') {
+          try {
+              await signInWithEmailAndPassword(auth, data.email, data.password);
+              toast({
+                  title: "Admin Login Successful",
+                  description: "Welcome, Admin! Redirecting...",
+              });
+              // The useAuthRedirect hook will handle the redirection to /admin/dashboard
+              return; 
+          } catch (err: any) {
+              // If admin user does not exist, create it
+              if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                  const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+                  await createUserProfile(userCredential.user.uid, data.email, UserRole.ADMIN, { displayName: "Admin" });
+                  toast({
+                      title: "Admin Account Created",
+                      description: "Welcome, Admin! Redirecting...",
+                  });
+                   // The useAuthRedirect hook will handle the redirection
+                  return;
+              } else {
+                  // For other errors (e.g., wrong password for existing admin), throw them to be caught below
+                  throw err;
+              }
+          }
+      }
+
+      // Regular user login
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({
         title: "Login Successful",
         description: "Welcome back! Redirecting...",
       });
       // AuthProvider will fetch profile and useAuthRedirect will handle navigation.
-      // Explicit redirect: router.push('/'); or role-specific page
     } catch (err: any) {
       console.error("Login error:", err.code, err.message);
       let errorMessage = "Failed to login. Please check your credentials and try again.";

@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO true TO BYPASS AUTH AND MOCK A USER.
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
-const DEVELOPMENT_BYPASS_AUTH = true; 
+const DEVELOPMENT_BYPASS_AUTH = false; 
 const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.BUYER_SELLER, UserRole.TRANSPORT_OWNER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
@@ -90,12 +90,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        try {
-          const profile = await getUserProfile(user.uid);
-          setUserProfile(profile);
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          setUserProfile(null); 
+        // Special override for the admin user
+        if (user.email === 'njvishnun@gmail.com') {
+            try {
+                // Ensure profile exists and has admin role
+                let profile = await getUserProfile(user.uid);
+                if (!profile || profile.role !== UserRole.ADMIN) {
+                    await createUserProfile(user.uid, user.email, UserRole.ADMIN, { displayName: 'Admin' });
+                    profile = await getUserProfile(user.uid); // re-fetch
+                }
+                setUserProfile(profile);
+            } catch (error) {
+                console.error("Error setting up admin user profile:", error);
+                setUserProfile(null);
+            }
+        } else {
+            try {
+              const profile = await getUserProfile(user.uid);
+              setUserProfile(profile);
+            } catch (error) {
+              console.error("Error fetching user profile:", error);
+              setUserProfile(null); 
+            }
         }
       } else {
         setUserProfile(null);
