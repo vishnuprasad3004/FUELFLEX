@@ -1,4 +1,3 @@
-
 // This MUST be the very first line
 'use client';
 
@@ -7,7 +6,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus } from 'lucide-react';
+import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
@@ -26,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // --- DATA MODELS ---
 
-type VehicleType = 'Truck' | 'Car' | 'Van' | 'Auto' | 'Bike';
+type VehicleType = 'Truck' | 'Car' | 'Van' | 'Auto' | 'Bike' | 'Tipper' | 'Trailer';
 type DocumentType = 'RC' | 'Insurance' | 'Pollution' | 'Permit' | 'Fitness' | 'License' | 'Aadhaar';
 
 interface VehicleDocument {
@@ -64,6 +63,10 @@ interface Vehicle {
   driverId?: string;
   imageUrl: string;
   documents: VehicleDocument[];
+  // New fields for extended info
+  fuelLevel: number; // Percentage
+  mileage: number; // in km
+  fastagBalance: number; // in INR
 }
 
 
@@ -95,7 +98,8 @@ const initialVehicles: Vehicle[] = [
       { type: 'Fitness', name: 'Fitness Certificate', url: '#', expiryDate: new Date('2024-12-31'), status: 'expiring_soon' },
       { type: 'Permit', name: 'National Permit', url: '#', expiryDate: new Date('2026-01-15'), status: 'active' },
       { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2024-08-20'), status: 'expired' },
-    ]
+    ],
+    fuelLevel: 75, mileage: 125000, fastagBalance: 1250,
   },
   {
     id: 'V02', number: 'MH 12 CD 5678', type: 'Van', model: 'Maruti Suzuki Eeco', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-05-01'), nextServiceDate: new Date('2024-11-01'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/van1/600/400',
@@ -105,7 +109,8 @@ const initialVehicles: Vehicle[] = [
       { type: 'Fitness', name: 'Fitness Certificate', url: '#', expiryDate: new Date('2025-02-10'), status: 'active' },
       { type: 'Permit', name: 'State Permit', url: '#', expiryDate: new Date('2027-01-01'), status: 'active' },
       { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2025-01-25'), status: 'active' },
-    ]
+    ],
+    fuelLevel: 45, mileage: 85000, fastagBalance: 800,
   },
    {
     id: 'V03', number: 'DL 03 EF 9012', type: 'Car', model: 'Hyundai Verna', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-06-20'), nextServiceDate: new Date('2025-06-20'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/car1/600/400',
@@ -113,18 +118,42 @@ const initialVehicles: Vehicle[] = [
        { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
        { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2024-09-05'), status: 'expiring_soon' },
        { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2025-03-10'), status: 'active' },
-    ]
-  }
+    ],
+    fuelLevel: 90, mileage: 42000, fastagBalance: 2500,
+  },
+  { 
+    id: 'V04', number: 'TN 22 TR 4018', type: 'Trailer', model: 'Ashok Leyland 3118', owner: 'Southern Carriers', lastServiceDate: new Date('2024-04-10'), nextServiceDate: new Date('2024-10-10'), driverId: undefined, imageUrl: 'https://picsum.photos/seed/trailer1/600/400',
+    documents: [
+      { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
+      { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2025-04-30'), status: 'active' },
+      { type: 'Fitness', name: 'Fitness Certificate', url: '#', expiryDate: new Date('2024-10-15'), status: 'expiring_soon' },
+      { type: 'Permit', name: 'National Permit', url: '#', expiryDate: new Date('2028-01-01'), status: 'active' },
+      { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2025-04-10'), status: 'active' },
+    ],
+    fuelLevel: 60, mileage: 210000, fastagBalance: 3100,
+  },
+  { 
+    id: 'V05', number: 'GJ 05 XY 7890', type: 'Tipper', model: 'TATA 4018', owner: 'Western Infra', lastServiceDate: new Date('2024-07-01'), nextServiceDate: new Date('2025-01-01'), driverId: undefined, imageUrl: 'https://picsum.photos/seed/tipper1/600/400',
+    documents: [
+      { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
+      { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2024-07-30'), status: 'expired' },
+      { type: 'Fitness', name: 'Fitness Certificate', url: '#', expiryDate: new Date('2024-08-30'), status: 'expired' },
+    ],
+    fuelLevel: 80, mileage: 95000, fastagBalance: 500,
+  },
 ];
 
 // --- ZOD SCHEMAS for Forms ---
 
 const vehicleFormSchema = z.object({
   number: z.string().min(6, "Reg. number is required").regex(/^[A-Z]{2}[ -]?[0-9]{1,2}[ -]?[A-Z]{1,2}[ -]?[0-9]{1,4}$/, "Invalid vehicle number format"),
-  type: z.enum(['Truck', 'Car', 'Van', 'Auto', 'Bike']),
+  type: z.enum(['Truck', 'Car', 'Van', 'Auto', 'Bike', 'Tipper', 'Trailer']),
   model: z.string().min(3, "Model name is required"),
   owner: z.string().min(3, "Owner name is required"),
   lastServiceDate: z.date({ required_error: "Last service date is required."}),
+  fuelLevel: z.preprocess((val) => parseInt(String(val), 10), z.number().min(0).max(100)),
+  mileage: z.preprocess((val) => parseInt(String(val), 10), z.number().min(0)),
+  fastagBalance: z.preprocess((val) => parseInt(String(val), 10), z.number().min(0)),
 });
 
 const driverFormSchema = z.object({
@@ -163,12 +192,14 @@ const statusIcons = {
   expired: <ShieldAlert className="h-4 w-4 text-red-600" />,
 };
 
-const vehicleIcons = {
+const vehicleIcons: Record<VehicleType, React.ReactElement> = {
   Truck: <Truck className="h-6 w-6 text-primary" />,
   Car: <Car className="h-6 w-6 text-primary" />,
   Van: <Truck className="h-6 w-6 text-primary" />, // Using Truck for Van
   Auto: <Bike className="h-6 w-6 text-primary" />, // Using Bike for Auto
   Bike: <Bike className="h-6 w-6 text-primary" />,
+  Tipper: <Truck className="h-6 w-6 text-primary" />,
+  Trailer: <Truck className="h-6 w-6 text-primary" />,
 };
 
 const documentIcons = {
@@ -229,7 +260,7 @@ export default function TransportOwnerDashboardPage() {
 
 
   // --- FORM HANDLING ---
-  const vehicleForm = useForm<z.infer<typeof vehicleFormSchema>>({ resolver: zodResolver(vehicleFormSchema) });
+  const vehicleForm = useForm<z.infer<typeof vehicleFormSchema>>({ resolver: zodResolver(vehicleFormSchema), defaultValues: { fuelLevel: 70, mileage: 50000, fastagBalance: 1000 } });
   const driverForm = useForm<z.infer<typeof driverFormSchema>>({ resolver: zodResolver(driverFormSchema) });
 
   const onAddVehicleSubmit: SubmitHandler<z.infer<typeof vehicleFormSchema>> = async (data) => {
@@ -243,6 +274,9 @@ export default function TransportOwnerDashboardPage() {
       nextServiceDate: new Date(new Date(data.lastServiceDate).setMonth(data.lastServiceDate.getMonth() + 6)), // 6 months later
       imageUrl: `https://picsum.photos/seed/${data.number}/600/400`,
       documents: [], // Start with no documents
+      fuelLevel: data.fuelLevel,
+      mileage: data.mileage,
+      fastagBalance: data.fastagBalance,
     };
     setVehicles(prev => [newVehicle, ...prev]);
     toast({ title: "Vehicle Added", description: `${data.model} has been added to your fleet.` });
@@ -309,6 +343,8 @@ export default function TransportOwnerDashboardPage() {
                         <SelectItem value="Car">Car</SelectItem>
                         <SelectItem value="Auto">Auto</SelectItem>
                         <SelectItem value="Bike">Bike</SelectItem>
+                        <SelectItem value="Tipper">Tipper</SelectItem>
+                        <SelectItem value="Trailer">Trailer</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -330,7 +366,7 @@ export default function TransportOwnerDashboardPage() {
                             {hasExpiredDoc && <div className="absolute top-0 left-0 h-full w-1.5 bg-red-500 z-10 animate-pulse" title="A document has expired!"></div>}
                             <CardHeader className="p-0">
                                 <div className="relative h-48 w-full">
-                                    <Image src={vehicle.imageUrl} alt={vehicle.model} layout="fill" objectFit="cover" className="group-hover:scale-105 transition-transform duration-300" />
+                                    <Image src={vehicle.imageUrl} alt={vehicle.model} layout="fill" objectFit="cover" className="group-hover:scale-105 transition-transform duration-300" data-ai-hint={`${vehicle.type} vehicle`} />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                                     <div className="absolute bottom-4 left-4">
                                         <h2 className="text-2xl font-bold text-white shadow-md">{vehicle.number}</h2>
@@ -341,18 +377,31 @@ export default function TransportOwnerDashboardPage() {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-4 space-y-3">
-                               <div className="flex justify-between items-center text-sm">
-                                    <span className="text-gray-500 dark:text-gray-400">Owner</span>
-                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{vehicle.owner}</span>
-                                </div>
+                            <CardContent className="p-4 space-y-4">
+                               <div className="grid grid-cols-3 gap-4 text-center text-sm">
+                                  <div title="Fuel Level">
+                                    <Fuel className="h-5 w-5 mx-auto text-gray-400 mb-1"/>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">{vehicle.fuelLevel}%</p>
+                                  </div>
+                                  <div title="Mileage">
+                                     <MapPin className="h-5 w-5 mx-auto text-gray-400 mb-1"/>
+                                     <p className="font-semibold text-gray-700 dark:text-gray-300">{vehicle.mileage.toLocaleString()} km</p>
+                                  </div>
+                                  <div title="FASTag Balance">
+                                     <IndianRupee className="h-5 w-5 mx-auto text-gray-400 mb-1"/>
+                                     <p className="font-semibold text-gray-700 dark:text-gray-300">₹{vehicle.fastagBalance.toLocaleString()}</p>
+                                  </div>
+                               </div>
+
+                                <Separator />
                                 
                                 <div className="space-y-2 pt-2">
                                      <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Document Status</h4>
                                      <div className="flex justify-around items-center text-xs">
-                                        {docStatus.insurance && <div className={cn('flex items-center gap-1 p-1 rounded-md', statusStyles[docStatus.insurance])} title={`Insurance: ${docStatus.insurance}`}>Ins <CheckCircle className="h-3 w-3"/></div>}
-                                        {docStatus.fitness && <div className={cn('flex items-center gap-1 p-1 rounded-md', statusStyles[docStatus.fitness])} title={`Fitness: ${docStatus.fitness}`}>Fit <CheckCircle className="h-3 w-3"/></div>}
-                                        {docStatus.permit && <div className={cn('flex items-center gap-1 p-1 rounded-md', statusStyles[docStatus.permit])} title={`Permit: ${docStatus.permit}`}>Per <CheckCircle className="h-3 w-3"/></div>}
+                                        <div className={cn('flex items-center gap-1 p-1 px-2 rounded-md', statusStyles[getDocumentStatus(vehicle.documents.find(d => d.type === 'Insurance')?.expiryDate)])} title={`Insurance: ${docStatus.insurance}`}>Ins</div>
+                                        <div className={cn('flex items-center gap-1 p-1 px-2 rounded-md', statusStyles[getDocumentStatus(vehicle.documents.find(d => d.type === 'Fitness')?.expiryDate)])} title={`Fitness: ${docStatus.fitness}`}>Fit</div>
+                                        <div className={cn('flex items-center gap-1 p-1 px-2 rounded-md', statusStyles[getDocumentStatus(vehicle.documents.find(d => d.type === 'Permit')?.expiryDate)])} title={`Permit: ${docStatus.permit}`}>Per</div>
+                                        <div className={cn('flex items-center gap-1 p-1 px-2 rounded-md', statusStyles[getDocumentStatus(vehicle.documents.find(d => d.type === 'Pollution')?.expiryDate)])} title={`Pollution: ${docStatus.permit}`}>PUC</div>
                                      </div>
                                 </div>
 
@@ -371,7 +420,7 @@ export default function TransportOwnerDashboardPage() {
                                      <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Assigned Driver</h4>
                                      <div className="flex items-center justify-between mt-1 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                                         <div className="flex items-center gap-2">
-                                            <Image src={driver?.imageUrl || 'https://picsum.photos/seed/placeholder/50/50'} alt={driver?.name || "Unassigned"} width={40} height={40} className="rounded-full" />
+                                            <Image src={driver?.imageUrl || 'https://picsum.photos/seed/placeholder/50/50'} alt={driver?.name || "Unassigned"} width={40} height={40} className="rounded-full" data-ai-hint="driver portrait" />
                                             <div>
                                                 <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">{driver?.name || 'Unassigned'}</p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">{driver ? 'View Details' : 'Assign a driver'}</p>
@@ -391,6 +440,13 @@ export default function TransportOwnerDashboardPage() {
                     )
                 })}
             </div>
+             {filteredVehicles.length === 0 && (
+                <div className="text-center py-16 col-span-full">
+                    <Truck className="h-16 w-16 mx-auto text-gray-300 dark:text-gray-600" />
+                    <h3 className="mt-4 text-lg font-medium text-gray-800 dark:text-gray-200">No Vehicles Found</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter, or add a new vehicle.</p>
+                </div>
+             )}
         </main>
       </div>
 
@@ -408,11 +464,12 @@ export default function TransportOwnerDashboardPage() {
                     {documentIcons[doc.type]}
                     <div className="flex-grow">
                         <p className="font-semibold">{doc.name}</p>
-                        {doc.expiryDate && <p className={cn('text-xs', statusStyles[doc.status])}>Expires: {format(doc.expiryDate, 'dd MMM yyyy')}</p>}
+                        {doc.expiryDate && <p className={cn('text-xs font-medium p-1 rounded-md inline-block', statusStyles[getDocumentStatus(doc.expiryDate)])}>Expires: {format(doc.expiryDate, 'dd MMM yyyy')}</p>}
                     </div>
                     <Button variant="outline" size="sm" onClick={() => window.open('#', '_blank')}>View</Button>
                 </Card>
             ))}
+             {selectedVehicle?.documents.length === 0 && <p className="text-sm text-gray-500 md:col-span-2 text-center">No documents uploaded for this vehicle.</p>}
           </div>
            <DialogFooter>
                 <Button variant="secondary" onClick={() => setIsVehicleModalOpen(false)}>Close</Button>
@@ -430,7 +487,7 @@ export default function TransportOwnerDashboardPage() {
           {selectedDriver && (
             <div className="py-4 space-y-4">
                 <div className="flex items-center gap-4">
-                    <Image src={selectedDriver.imageUrl} alt={selectedDriver.name} width={80} height={80} className="rounded-full border-4 border-primary" />
+                    <Image src={selectedDriver.imageUrl} alt={selectedDriver.name} width={80} height={80} className="rounded-full border-4 border-primary" data-ai-hint="driver portrait"/>
                     <div>
                         <h3 className="text-xl font-bold">{selectedDriver.name}</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{selectedDriver.experience} years experience</p>
@@ -440,7 +497,7 @@ export default function TransportOwnerDashboardPage() {
                     <div className="font-semibold text-gray-500">Age:</div> <div>{selectedDriver.age}</div>
                     <div className="font-semibold text-gray-500">Phone:</div> <div>{selectedDriver.phone}</div>
                     <div className="font-semibold text-gray-500">License No:</div> <div>{selectedDriver.licenseNumber}</div>
-                    <div className="font-semibold text-gray-500">License Expiry:</div> <div className={cn(statusStyles[getDocumentStatus(selectedDriver.licenseExpiry)])}>{format(selectedDriver.licenseExpiry, 'dd MMM yyyy')}</div>
+                    <div className="font-semibold text-gray-500">License Expiry:</div> <div className={cn("font-medium", statusStyles[getDocumentStatus(selectedDriver.licenseExpiry)])}>{format(selectedDriver.licenseExpiry, 'dd MMM yyyy')}</div>
                     <div className="font-semibold text-gray-500 col-span-2">Address:</div>
                     <div className="col-span-2">{selectedDriver.address}</div>
                 </div>
@@ -463,15 +520,15 @@ export default function TransportOwnerDashboardPage() {
 
       {/* Modals for Adding New Entries */}
        <Dialog open={isAddVehicleModalOpen} onOpenChange={setIsAddVehicleModalOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Add New Vehicle</DialogTitle>
                     <DialogDescription>Fill in the details to register a new vehicle to your fleet.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={vehicleForm.handleSubmit(onAddVehicleSubmit)} className="space-y-4">
+                <form onSubmit={vehicleForm.handleSubmit(onAddVehicleSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
                      <div>
                         <Label htmlFor="number">Vehicle Number</Label>
-                        <Input id="number" {...vehicleForm.register('number')} />
+                        <Input id="number" {...vehicleForm.register('number')} placeholder="e.g. MH 12 AB 3456" />
                         {vehicleForm.formState.errors.number && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.number.message}</p>}
                     </div>
                     <div>
@@ -485,6 +542,8 @@ export default function TransportOwnerDashboardPage() {
                                     <SelectItem value="Car">Car</SelectItem>
                                     <SelectItem value="Auto">Auto</SelectItem>
                                     <SelectItem value="Bike">Bike</SelectItem>
+                                    <SelectItem value="Tipper">Tipper</SelectItem>
+                                    <SelectItem value="Trailer">Trailer</SelectItem>
                                 </SelectContent>
                             </Select>
                         )} />
@@ -492,13 +551,27 @@ export default function TransportOwnerDashboardPage() {
                     </div>
                      <div>
                         <Label htmlFor="model">Model</Label>
-                        <Input id="model" {...vehicleForm.register('model')} />
+                        <Input id="model" {...vehicleForm.register('model')} placeholder="e.g. TATA 4018" />
                         {vehicleForm.formState.errors.model && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.model.message}</p>}
                     </div>
                      <div>
                         <Label htmlFor="owner">Owner Name</Label>
                         <Input id="owner" {...vehicleForm.register('owner')} />
                         {vehicleForm.formState.errors.owner && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.owner.message}</p>}
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                           <Label htmlFor="fuelLevel">Fuel (%)</Label>
+                           <Input id="fuelLevel" type="number" {...vehicleForm.register('fuelLevel')} />
+                       </div>
+                        <div>
+                           <Label htmlFor="mileage">Mileage (km)</Label>
+                           <Input id="mileage" type="number" {...vehicleForm.register('mileage')} />
+                       </div>
+                        <div>
+                           <Label htmlFor="fastagBalance">FASTag (₹)</Label>
+                           <Input id="fastagBalance" type="number" {...vehicleForm.register('fastagBalance')} />
+                       </div>
                     </div>
                     <div>
                         <Label>Last Service Date</Label>
@@ -515,7 +588,7 @@ export default function TransportOwnerDashboardPage() {
                          )} />
                         {vehicleForm.formState.errors.lastServiceDate && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.lastServiceDate.message}</p>}
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="pt-4">
                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                         <Button type="submit" disabled={vehicleForm.formState.isSubmitting}>Add Vehicle</Button>
                     </DialogFooter>
@@ -587,5 +660,3 @@ export default function TransportOwnerDashboardPage() {
     </>
   );
 }
-
-    
