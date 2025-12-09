@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -25,7 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
 const DEVELOPMENT_BYPASS_AUTH = false; 
-const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.ADMIN, UserRole.BUYER_SELLER)
+const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.TRANSPORT_OWNER; // Change to test other roles (UserRole.ADMIN, UserRole.BUYER_SELLER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
@@ -46,28 +47,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       const mockFirebaseUser: FirebaseUser = {
-        uid: 'mock-admin-user-uid',
-        email: 'njvishnun@gmail.com',
-        displayName: 'Vishnu N',
+        uid: 'mock-user-uid-transport-owner',
+        email: 'owner@example.com',
+        displayName: 'Mock Transport Owner',
         emailVerified: true,
         isAnonymous: false,
-        metadata: {} as any, // Cast to any for simplicity if issues arise with specific metadata structure
+        metadata: {} as any, 
         providerData: [],
-        providerId: 'password', // Mock provider
+        providerId: 'password', 
         photoURL: null,
         phoneNumber: null,
         tenantId: null,
         delete: async () => { console.log("Mock delete called"); },
         getIdToken: async () => "mock-id-token",
-        getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any), // Cast for simplicity
+        getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any),
         reload: async () => { console.log("Mock reload called"); },
-        toJSON: () => ({ uid: 'mock-admin-user-uid', email: 'njvishnun@gmail.com' }),
+        toJSON: () => ({ uid: 'mock-user-uid-transport-owner', email: 'owner@example.com' }),
       } as FirebaseUser; 
 
       const mockUserProfileData: UserProfile = {
-        uid: 'mock-admin-user-uid',
-        email: 'njvishnun@gmail.com',
-        displayName: 'Vishnu N (Admin)',
+        uid: 'mock-user-uid-transport-owner',
+        email: 'owner@example.com',
+        displayName: 'Mock Transport Owner',
         role: MOCK_USER_ROLE_FOR_BYPASS,
         createdAt: new Date(),
         updatedAt: new Date(),

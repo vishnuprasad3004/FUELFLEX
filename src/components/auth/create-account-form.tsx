@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, UserPlus } from 'lucide-react';
 import { createUserProfile } from '@/services/user-service'; 
@@ -30,7 +30,12 @@ export default function CreateAccountForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null); // For inline error display if needed
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  const defaultRole = searchParams.get('role') === UserRole.TRANSPORT_OWNER 
+    ? UserRole.TRANSPORT_OWNER 
+    : UserRole.BUYER_SELLER;
 
   const {
     register,
@@ -40,7 +45,7 @@ export default function CreateAccountForm() {
   } = useForm<CreateAccountFormInputs>({
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
-      role: UserRole.BUYER_SELLER, 
+      role: defaultRole, 
     },
   });
 
@@ -48,6 +53,9 @@ export default function CreateAccountForm() {
     setLoading(true);
     setError(null);
     try {
+      if (!auth) {
+        throw new Error("Authentication service is not available. Check Firebase configuration.");
+      }
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
@@ -61,8 +69,15 @@ export default function CreateAccountForm() {
           title: "Account Created Successfully!",
           description: "Welcome to FuelFlex! Redirecting...",
         });
-        // AuthProvider handles profile fetching, useAuthRedirect handles navigation.
-        // Explicit redirect example: router.push(data.role === UserRole.ADMIN ? '/admin/dashboard' : '/');
+        
+        // After successful creation, redirect based on role
+        if (data.role === UserRole.TRANSPORT_OWNER) {
+          router.push('/transport-owner/dashboard');
+        } else if (data.role === UserRole.ADMIN) {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/marketplace');
+        }
       }
     } catch (err: any) {
       console.error("Create account error:", err.code, err.message);
@@ -119,26 +134,24 @@ export default function CreateAccountForm() {
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="role">Register as</Label>
+        <Label htmlFor="role">I am a...</Label>
         <Controller
             name="role"
             control={control}
             render={({ field }) => (
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger id="role">
                         <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value={UserRole.BUYER_SELLER}>Buyer / Seller</SelectItem>
-                        <SelectItem value={UserRole.TRANSPORT_OWNER}>Transport Owner</SelectItem>
-                        {/* <SelectItem value={UserRole.ADMIN}>Admin</SelectItem> */}
+                        <SelectItem value={UserRole.BUYER_SELLER}>Buyer / Seller (I want to ship goods)</SelectItem>
+                        <SelectItem value={UserRole.TRANSPORT_OWNER}>Transport Owner (I have vehicles)</SelectItem>
                     </SelectContent>
                 </Select>
             )}
         />
         {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
       </div>
-      {/* {error && <p className="text-sm text-destructive text-center mt-2">{error}</p>} */}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
         Create Account
