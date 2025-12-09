@@ -2,350 +2,590 @@
 // This MUST be the very first line
 'use client';
 
+import React, { useState, useMemo, type ChangeEvent } from 'react';
 import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, MapPin, AlertCircle, IndianRupee, ListChecks, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText } from 'lucide-react'; // Removed ImageIcon as next/image is used
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { uploadFile as uploadFileToStorage } from '@/services/storage-service'; 
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// --- DATA MODELS ---
+
+type VehicleType = 'Truck' | 'Car' | 'Van' | 'Auto' | 'Bike';
+type DocumentType = 'RC' | 'Insurance' | 'Pollution' | 'Permit' | 'Fitness' | 'License' | 'Aadhaar';
+
+interface VehicleDocument {
+  type: DocumentType;
+  name: string;
+  url: string; // URL to the document (PDF/Image)
+  expiryDate?: Date;
+  status: 'active' | 'expired' | 'expiring_soon';
+}
+
+interface DriverDocument extends VehicleDocument {}
+
+interface Driver {
+  id: string;
+  name: string;
+  age: number;
+  licenseNumber: string;
+  licenseExpiry: Date;
+  phone: string;
+  experience: number; // in years
+  address: string;
+  imageUrl: string;
+  assignedVehicleIds: string[];
+  documents: DriverDocument[];
+}
 
 interface Vehicle {
   id: string;
-  name: string;
-  registrationNumber: string;
-  location: string; 
-  fuelLevel: number; 
-  fastagBalance: number; 
-  status: 'idle' | 'in_transit' | 'maintenance' | 'offline';
+  number: string;
+  type: VehicleType;
+  model: string;
+  owner: string;
+  lastServiceDate: Date;
+  nextServiceDate: Date;
+  driverId?: string;
   imageUrl: string;
-  rcBookUrl?: string; 
-  dataAiHint: string;
-  lastUpdated: string;
+  documents: VehicleDocument[];
 }
 
-const initialMockVehicles: Vehicle[] = [
-  { id: 'V001', name: 'Tata Ace Gold', registrationNumber: 'MH12AB1234', location: 'Mumbai, MH', fuelLevel: 75, fastagBalance: 1250, status: 'idle', imageUrl: 'https://picsum.photos/seed/tataacegold/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV001/200/300', dataAiHint: 'mini truck city', lastUpdated: '2 mins ago' },
-  { id: 'V002', name: 'Ashok Leyland Dost+', registrationNumber: 'KA01CD5678', location: 'En route to Pune', fuelLevel: 40, fastagBalance: 800, status: 'in_transit', imageUrl: 'https://picsum.photos/seed/leylanddostplus/400/250', dataAiHint: 'light truck highway', lastUpdated: 'Now' },
-  { id: 'V003', name: 'Mahindra Bolero Maxx', registrationNumber: 'DL03EF9012', location: 'Delhi NCR', fuelLevel: 90, fastagBalance: 2500, status: 'idle', imageUrl: 'https://picsum.photos/seed/boleromaxx/400/250', rcBookUrl: 'https://picsum.photos/seed/rcV003/200/300', dataAiHint: 'pickup truck urban', lastUpdated: '10 mins ago' },
+
+// --- DUMMY DATA ---
+
+const initialDrivers: Driver[] = [
+  {
+    id: 'D01', name: 'Ramesh Kumar', age: 35, licenseNumber: 'DL1420200012345', licenseExpiry: new Date('2028-05-20'), phone: '+91 9876543210', experience: 10, address: '123, MG Road, Bangalore', imageUrl: 'https://picsum.photos/seed/driver1/200/200', assignedVehicleIds: ['V01'],
+    documents: [
+      { type: 'License', name: 'Driving License', url: '#', expiryDate: new Date('2028-05-20'), status: 'active'},
+      { type: 'Aadhaar', name: 'Aadhaar Card', url: '#', status: 'active' },
+    ]
+  },
+  {
+    id: 'D02', name: 'Suresh Singh', age: 42, licenseNumber: 'MH0120180054321', licenseExpiry: new Date('2025-11-15'), phone: '+91 9988776655', experience: 15, address: '456, SV Road, Mumbai', imageUrl: 'https://picsum.photos/seed/driver2/200/200', assignedVehicleIds: ['V02', 'V03'],
+    documents: [
+      { type: 'License', name: 'Driving License', url: '#', expiryDate: new Date('2025-11-15'), status: 'active'},
+      { type: 'Aadhaar', name: 'Aadhaar Card', url: '#', status: 'active' },
+    ]
+  },
 ];
 
-const vehicleRegistrationSchema = z.object({
-  name: z.string().min(3, "Vehicle name must be at least 3 characters"),
-  registrationNumber: z.string().min(6, "Registration number is required (e.g., MH01AB1234)")
-    .regex(/^[A-Z]{2}[0-9]{1,2}(?:[A-Z])?(?:[A-Z]*)?[0-9]{4}$/, "Invalid registration number format. E.g., MH01AB1234, DL1C1234, KA05N9876"),
-});
-type VehicleRegistrationFormInputs = z.infer<typeof vehicleRegistrationSchema>;
+const initialVehicles: Vehicle[] = [
+  { 
+    id: 'V01', number: 'KA 01 AB 1234', type: 'Truck', model: 'Tata Ultra T.7', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-03-15'), nextServiceDate: new Date('2024-09-15'), driverId: 'D01', imageUrl: 'https://picsum.photos/seed/truck1/600/400',
+    documents: [
+      { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
+      { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2025-06-30'), status: 'active' },
+      { type: 'Fitness', name: 'Fitness Certificate', url: '#', expiryDate: new Date('2024-12-31'), status: 'expiring_soon' },
+      { type: 'Permit', name: 'National Permit', url: '#', expiryDate: new Date('2026-01-15'), status: 'active' },
+      { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2024-08-20'), status: 'expired' },
+    ]
+  },
+  {
+    id: 'V02', number: 'MH 12 CD 5678', type: 'Van', model: 'Maruti Suzuki Eeco', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-05-01'), nextServiceDate: new Date('2024-11-01'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/van1/600/400',
+    documents: [
+      { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
+      { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2025-02-10'), status: 'active' },
+      { type: 'Fitness', name: 'Fitness Certificate', url: '#', expiryDate: new Date('2025-02-10'), status: 'active' },
+      { type: 'Permit', name: 'State Permit', url: '#', expiryDate: new Date('2027-01-01'), status: 'active' },
+      { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2025-01-25'), status: 'active' },
+    ]
+  },
+   {
+    id: 'V03', number: 'DL 03 EF 9012', type: 'Car', model: 'Hyundai Verna', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-06-20'), nextServiceDate: new Date('2025-06-20'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/car1/600/400',
+    documents: [
+       { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
+       { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2024-09-05'), status: 'expiring_soon' },
+       { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2025-03-10'), status: 'active' },
+    ]
+  }
+];
 
+// --- ZOD SCHEMAS for Forms ---
+
+const vehicleFormSchema = z.object({
+  number: z.string().min(6, "Reg. number is required").regex(/^[A-Z]{2}[ -]?[0-9]{1,2}[ -]?[A-Z]{1,2}[ -]?[0-9]{1,4}$/, "Invalid vehicle number format"),
+  type: z.enum(['Truck', 'Car', 'Van', 'Auto', 'Bike']),
+  model: z.string().min(3, "Model name is required"),
+  owner: z.string().min(3, "Owner name is required"),
+  lastServiceDate: z.date({ required_error: "Last service date is required."}),
+});
+
+const driverFormSchema = z.object({
+    name: z.string().min(3, "Driver name is required"),
+    age: z.preprocess(val => parseInt(String(val), 10), z.number().min(18, "Driver must be at least 18").max(65, "Age seems incorrect")),
+    licenseNumber: z.string().min(10, "License number is required"),
+    licenseExpiry: z.date({ required_error: "License expiry date is required." }),
+    phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format"),
+    experience: z.preprocess(val => parseInt(String(val), 10), z.number().min(0, "Experience cannot be negative")),
+    address: z.string().min(10, "Address is required"),
+});
+
+// --- HELPER & UTILITY FUNCTIONS ---
+
+const getDocumentStatus = (expiryDate?: Date): 'active' | 'expired' | 'expiring_soon' => {
+  if (!expiryDate) return 'active';
+  const today = new Date();
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+  if (expiryDate < today) return 'expired';
+  if (expiryDate <= thirtyDaysFromNow) return 'expiring_soon';
+  return 'active';
+};
+
+
+const statusStyles = {
+  active: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+  expiring_soon: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
+  expired: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+};
+
+const statusIcons = {
+  active: <ShieldCheck className="h-4 w-4 text-green-600" />,
+  expiring_soon: <ShieldAlert className="h-4 w-4 text-yellow-600" />,
+  expired: <ShieldAlert className="h-4 w-4 text-red-600" />,
+};
+
+const vehicleIcons = {
+  Truck: <Truck className="h-6 w-6 text-primary" />,
+  Car: <Car className="h-6 w-6 text-primary" />,
+  Van: <Truck className="h-6 w-6 text-primary" />, // Using Truck for Van
+  Auto: <Bike className="h-6 w-6 text-primary" />, // Using Bike for Auto
+  Bike: <Bike className="h-6 w-6 text-primary" />,
+};
+
+const documentIcons = {
+    RC: <BookUser className="h-5 w-5 text-indigo-500" />,
+    Insurance: <Shield className="h-5 w-5 text-blue-500" />,
+    Pollution: <ShieldCheck className="h-5 w-5 text-green-500" />,
+    Permit: <FileText className="h-5 w-5 text-orange-500" />,
+    Fitness: <Star className="h-5 w-5 text-yellow-500" />,
+    License: <UserCheck className="h-5 w-5 text-cyan-500" />,
+    Aadhaar: <User className="h-5 w-5 text-gray-500" />,
+};
+
+
+// --- MAIN DASHBOARD COMPONENT ---
 
 export default function TransportOwnerDashboardPage() {
   useAuthRedirect({ requireAuth: true, requireRole: 'transport_owner' });
   
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialMockVehicles);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+  const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
   const [loading, setLoading] = useState(false); 
-  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
-  const [vehicleImageFile, setVehicleImageFile] = useState<File | null>(null);
-  const [rcBookFile, setRcBookFile] = useState<File | null>(null);
-  
   const { toast } = useToast();
 
-  const {
-    register,
-    handleSubmit,
-    reset: resetForm,
-    formState: { errors, isSubmitting: isFormSubmitting },
-  } = useForm<VehicleRegistrationFormInputs>({
-    resolver: zodResolver(vehicleRegistrationSchema),
-  });
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+  const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
+  const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
+  const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
 
-  const fetchVehicleData = () => {
-    setLoading(true);
-    setTimeout(() => {
-      const updatedVehicles = vehicles.map(v => ({ 
-        ...v,
-        fuelLevel: Math.max(10, Math.min(100, v.fuelLevel + Math.floor(Math.random() * 20) - 10)),
-        fastagBalance: Math.max(100, v.fastagBalance + Math.floor(Math.random() * 500) - 250),
-        status: v.status === 'offline' ? (Math.random() > 0.7 ? 'idle' : 'offline') : v.status,
-        lastUpdated: `${Math.floor(Math.random()*59) +1} mins ago`
-      }));
-      setVehicles(updatedVehicles);
-      setLoading(false);
-      toast({
-        title: "Vehicle Data Refreshed",
-        description: "Latest mock vehicle statuses loaded.",
-      });
-    }, 1000);
-  }
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
 
+  const filteredVehicles = useMemo(() => {
+    return vehicles
+      .filter(v => filterType === 'all' || v.type === filterType)
+      .filter(v => v.number.toLowerCase().includes(searchTerm.toLowerCase()) || v.model.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [vehicles, searchTerm, filterType]);
 
-  const getStatusColorClasses = (status: Vehicle['status']) => {
-    switch (status) {
-      case 'idle': return 'bg-primary/20 text-primary-foreground dark:bg-primary/30 dark:text-primary-foreground'; // Theme primary (Blue)
-      case 'in_transit': return 'bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent-foreground'; // Theme accent (Teal)
-      case 'maintenance': return 'bg-yellow-400/20 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300'; // Explicit yellow for warning
-      case 'offline': return 'bg-muted text-muted-foreground';
-      default: return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'; // Fallback, ensure it's defined
+  const viewVehicleDetails = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setIsVehicleModalOpen(true);
+  };
+  
+  const viewDriverDetails = (driverId?: string) => {
+    if (!driverId) {
+      toast({ title: 'No Driver Assigned', variant: 'destructive' });
+      return;
+    }
+    const driver = drivers.find(d => d.id === driverId);
+    if (driver) {
+      setSelectedDriver(driver);
+      setIsDriverModalOpen(true);
+    } else {
+      toast({ title: 'Driver Not Found', variant: 'destructive' });
     }
   };
 
-  const getFuelProgressColor = (level: number) => {
-    if (level < 25) return '[&>div]:bg-destructive'; // Theme destructive
-    if (level < 50) return '[&>div]:bg-yellow-500'; // Explicit yellow for warning
-    return '[&>div]:bg-accent'; // Theme accent for good level
-  };
 
+  // --- FORM HANDLING ---
+  const vehicleForm = useForm<z.infer<typeof vehicleFormSchema>>({ resolver: zodResolver(vehicleFormSchema) });
+  const driverForm = useForm<z.infer<typeof driverFormSchema>>({ resolver: zodResolver(driverFormSchema) });
 
-  const handleVehicleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setVehicleImageFile(e.target.files[0]);
-  };
-  const handleRcBookChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setRcBookFile(e.target.files[0]);
-  };
-
-  const onRegisterVehicleSubmit: SubmitHandler<VehicleRegistrationFormInputs> = async (data) => {
-    let vehicleImageUrl = 'https://picsum.photos/seed/newvehicle/400/250'; 
-    let rcBookMockUrl = undefined;
-
-    if (vehicleImageFile) {
-      try {
-        vehicleImageUrl = await uploadFileToStorage({ file: vehicleImageFile, path: `vehicles/images/${Date.now()}-${vehicleImageFile.name}`});
-      } catch (error) {
-        console.error("Error uploading vehicle image (mock):", error);
-        toast({ title: "Image Upload Failed (Mock)", description: "Using default image.", variant: "warning"});
-      }
-    }
-    if (rcBookFile) {
-       try {
-        rcBookMockUrl = await uploadFileToStorage({ file: rcBookFile, path: `vehicles/rc_books/${Date.now()}-${rcBookFile.name}`});
-      } catch (error) {
-        console.error("Error uploading RC book (mock):", error);
-        toast({ title: "RC Book Upload Failed (Mock)", description: "Proceeding without RC book URL.", variant: "warning"});
-      }
-    }
-
+  const onAddVehicleSubmit: SubmitHandler<z.infer<typeof vehicleFormSchema>> = async (data) => {
     const newVehicle: Vehicle = {
       id: `V${String(vehicles.length + 1).padStart(3, '0')}`,
-      name: data.name,
-      registrationNumber: data.registrationNumber.toUpperCase(),
-      location: 'Garage (New)', 
-      fuelLevel: 100, 
-      fastagBalance: 1000, 
-      status: 'idle',
-      imageUrl: vehicleImageUrl,
-      rcBookUrl: rcBookMockUrl,
-      dataAiHint: `${data.name.split(' ')[0] || 'vehicle'} transport`, // Generic hint
-      lastUpdated: 'Now',
+      number: data.number.toUpperCase(),
+      type: data.type as VehicleType,
+      model: data.model,
+      owner: data.owner,
+      lastServiceDate: data.lastServiceDate,
+      nextServiceDate: new Date(new Date(data.lastServiceDate).setMonth(data.lastServiceDate.getMonth() + 6)), // 6 months later
+      imageUrl: `https://picsum.photos/seed/${data.number}/600/400`,
+      documents: [], // Start with no documents
     };
-
     setVehicles(prev => [newVehicle, ...prev]);
-    toast({ title: "Vehicle Registered (Mock)", description: `${data.name} has been added to your fleet.` });
-    resetForm();
-    setVehicleImageFile(null);
-    setRcBookFile(null);
-    setIsRegisterDialogOpen(false);
+    toast({ title: "Vehicle Added", description: `${data.model} has been added to your fleet.` });
+    vehicleForm.reset();
+    setIsAddVehicleModalOpen(false);
   };
+  
+  const onAddDriverSubmit: SubmitHandler<z.infer<typeof driverFormSchema>> = async (data) => {
+      const newDriver: Driver = {
+        id: `D${String(drivers.length + 1).padStart(2, '0')}`,
+        name: data.name,
+        age: data.age,
+        licenseNumber: data.licenseNumber,
+        licenseExpiry: data.licenseExpiry,
+        phone: data.phone,
+        experience: data.experience,
+        address: data.address,
+        imageUrl: `https://picsum.photos/seed/${data.licenseNumber}/200/200`,
+        assignedVehicleIds: [],
+        documents: [],
+      };
+      setDrivers(prev => [newDriver, ...prev]);
+      toast({ title: "Driver Added", description: `${data.name} has been added to your staff.` });
+      driverForm.reset();
+      setIsAddDriverModalOpen(false);
+  };
+  
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <Card className="mb-8 shadow-xl bg-gradient-to-br from-primary via-primary/90 to-accent/50 text-primary-foreground border-primary/30">
-        <CardHeader className="flex flex-row justify-between items-center">
+    <>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <header className="bg-white dark:bg-gray-800 shadow-md">
+          <div className="container mx-auto px-4 md:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div>
-                <CardTitle className="text-3xl font-bold">Transport Owner Dashboard</CardTitle>
-                <CardDescription className="text-primary-foreground/90">Manage your fleet, view real-time status, and track finances.</CardDescription>
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Fleet Dashboard</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your vehicles, drivers, and documents.</p>
             </div>
-            <Button onClick={fetchVehicleData} variant="secondary" size="sm" disabled={loading} className="text-secondary-foreground hover:bg-secondary/80">
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
-                Refresh Data
-            </Button>
-        </CardHeader>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Vehicles</CardTitle>
-            <Truck className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{vehicles.length}</div>
-            <p className="text-xs text-muted-foreground">Active in your fleet</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Vehicles In Transit</CardTitle>
-            <MapPin className="h-5 w-5 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'in_transit').length}</div>
-            <p className="text-xs text-muted-foreground">Currently on trips</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Needs Attention</CardTitle>
-            <AlertCircle className="h-5 w-5 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {vehicles.filter(v => v.fuelLevel < 25 || v.status === 'maintenance' || v.status === 'offline').length}
-            </div>
-            <p className="text-xs text-muted-foreground">Low fuel, maintenance, or offline</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator className="my-8" />
-
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-foreground">My Vehicle Fleet</h2>
-        <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <PlusCircle className="mr-2 h-5 w-5"/> Register New Vehicle
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
-            <DialogHeader>
-              <DialogTitle>Register a New Vehicle</DialogTitle>
-              <DialogDescription>Enter the details of your vehicle to add it to your fleet. All fields are required unless marked optional.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit(onRegisterVehicleSubmit)} className="grid gap-4 py-4">
-              <div>
-                <Label htmlFor="name">Vehicle Name / Model</Label>
-                <Input id="name" {...register('name')} placeholder="e.g., Tata Ace Gold BS6" />
-                {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
-              </div>
-              <div>
-                <Label htmlFor="registrationNumber">Registration Number</Label>
-                <Input id="registrationNumber" {...register('registrationNumber')} placeholder="e.g., MH01AB1234" />
-                {errors.registrationNumber && <p className="text-sm text-destructive mt-1">{errors.registrationNumber.message}</p>}
-              </div>
-               <div>
-                <Label htmlFor="vehicleImage">Vehicle Image (Optional)</Label>
-                <Input id="vehicleImage" type="file" accept="image/*" onChange={handleVehicleImageChange} />
-                {vehicleImageFile && <p className="text-xs text-muted-foreground mt-1">Selected: {vehicleImageFile.name}</p>}
-              </div>
-              <div>
-                <Label htmlFor="rcBook">RC Book (PDF/Image, Optional)</Label>
-                <Input id="rcBook" type="file" accept="image/*,.pdf" onChange={handleRcBookChange} />
-                 {rcBookFile && <p className="text-xs text-muted-foreground mt-1">Selected: {rcBookFile.name}</p>}
-              </div>
-              <DialogFooter className="mt-4">
-                <DialogClose asChild>
-                    <Button type="button" variant="outline" onClick={() => { resetForm(); setVehicleImageFile(null); setRcBookFile(null); }}>Cancel</Button>
-                </DialogClose>
-                <Button type="submit" disabled={isFormSubmitting} className="bg-primary hover:bg-primary/90">
-                  {isFormSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                  Add Vehicle
+             <div className="flex items-center space-x-2">
+                 <Button onClick={() => setIsAddDriverModalOpen(true)} variant="outline">
+                    <UserPlus className="mr-2 h-4 w-4" /> Add Driver
+                 </Button>
+                <Button onClick={() => setIsAddVehicleModalOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Vehicle
                 </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto p-4 md:p-6 lg:p-8">
+            {/* Filter and Search Bar */}
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative flex-grow w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Input placeholder="Search by vehicle number or model..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="Truck">Truck</SelectItem>
+                        <SelectItem value="Van">Van</SelectItem>
+                        <SelectItem value="Car">Car</SelectItem>
+                        <SelectItem value="Auto">Auto</SelectItem>
+                        <SelectItem value="Bike">Bike</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+
+            {/* Vehicle Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredVehicles.map(vehicle => {
+                    const driver = drivers.find(d => d.id === vehicle.driverId);
+                    const docStatus = {
+                        insurance: vehicle.documents.find(d => d.type === 'Insurance')?.status,
+                        fitness: vehicle.documents.find(d => d.type === 'Fitness')?.status,
+                        permit: vehicle.documents.find(d => d.type === 'Permit')?.status,
+                    }
+                    const hasExpiredDoc = Object.values(docStatus).some(s => s === 'expired');
+
+                    return (
+                        <Card key={vehicle.id} className="bg-white dark:bg-gray-800 overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 group border-l-4 border-transparent hover:border-primary">
+                            {hasExpiredDoc && <div className="absolute top-0 left-0 h-full w-1.5 bg-red-500 z-10 animate-pulse" title="A document has expired!"></div>}
+                            <CardHeader className="p-0">
+                                <div className="relative h-48 w-full">
+                                    <Image src={vehicle.imageUrl} alt={vehicle.model} layout="fill" objectFit="cover" className="group-hover:scale-105 transition-transform duration-300" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                    <div className="absolute bottom-4 left-4">
+                                        <h2 className="text-2xl font-bold text-white shadow-md">{vehicle.number}</h2>
+                                        <p className="text-sm text-gray-200 shadow-sm">{vehicle.model}</p>
+                                    </div>
+                                    <div className="absolute top-4 right-4 bg-white/90 dark:bg-gray-900/90 p-2 rounded-full shadow-lg">
+                                        {vehicleIcons[vehicle.type]}
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-3">
+                               <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-500 dark:text-gray-400">Owner</span>
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{vehicle.owner}</span>
+                                </div>
+                                
+                                <div className="space-y-2 pt-2">
+                                     <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Document Status</h4>
+                                     <div className="flex justify-around items-center text-xs">
+                                        {docStatus.insurance && <div className={cn('flex items-center gap-1 p-1 rounded-md', statusStyles[docStatus.insurance])} title={`Insurance: ${docStatus.insurance}`}>Ins <CheckCircle className="h-3 w-3"/></div>}
+                                        {docStatus.fitness && <div className={cn('flex items-center gap-1 p-1 rounded-md', statusStyles[docStatus.fitness])} title={`Fitness: ${docStatus.fitness}`}>Fit <CheckCircle className="h-3 w-3"/></div>}
+                                        {docStatus.permit && <div className={cn('flex items-center gap-1 p-1 rounded-md', statusStyles[docStatus.permit])} title={`Permit: ${docStatus.permit}`}>Per <CheckCircle className="h-3 w-3"/></div>}
+                                     </div>
+                                </div>
+
+                                <div className="space-y-2 pt-2">
+                                    <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Service Schedule</h4>
+                                    <div>
+                                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                                            <span>Last: {format(vehicle.lastServiceDate, 'dd MMM yyyy')}</span>
+                                            <span>Next Due: {format(vehicle.nextServiceDate, 'dd MMM yyyy')}</span>
+                                        </div>
+                                        <Progress value={50} className="h-1.5 mt-1" />
+                                    </div>
+                                </div>
+
+                                <div className="pt-2">
+                                     <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Assigned Driver</h4>
+                                     <div className="flex items-center justify-between mt-1 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <Image src={driver?.imageUrl || 'https://picsum.photos/seed/placeholder/50/50'} alt={driver?.name || "Unassigned"} width={40} height={40} className="rounded-full" />
+                                            <div>
+                                                <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">{driver?.name || 'Unassigned'}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{driver ? 'View Details' : 'Assign a driver'}</p>
+                                            </div>
+                                        </div>
+                                         <Button variant="ghost" size="sm" onClick={() => viewDriverDetails(driver?.id)}>
+                                            <MoreHorizontal className="h-5 w-5"/>
+                                         </Button>
+                                     </div>
+                                </div>
+                            </CardContent>
+                             <CardFooter className="bg-gray-50 dark:bg-gray-800/50 p-3 flex justify-end space-x-2">
+                                <Button variant="outline" size="sm" onClick={() => viewVehicleDetails(vehicle)}>View Documents</Button>
+                                <Button size="sm">Manage Vehicle</Button>
+                            </CardFooter>
+                        </Card>
+                    )
+                })}
+            </div>
+        </main>
       </div>
+
+
+      {/* Modals for Details */}
+      <Dialog open={isVehicleModalOpen} onOpenChange={setIsVehicleModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Vehicle Details & Documents</DialogTitle>
+            <DialogDescription>{selectedVehicle?.model} - {selectedVehicle?.number}</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto">
+            {selectedVehicle?.documents.map(doc => (
+                <Card key={doc.type} className="flex items-center p-3 gap-3">
+                    {documentIcons[doc.type]}
+                    <div className="flex-grow">
+                        <p className="font-semibold">{doc.name}</p>
+                        {doc.expiryDate && <p className={cn('text-xs', statusStyles[doc.status])}>Expires: {format(doc.expiryDate, 'dd MMM yyyy')}</p>}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => window.open('#', '_blank')}>View</Button>
+                </Card>
+            ))}
+          </div>
+           <DialogFooter>
+                <Button variant="secondary" onClick={() => setIsVehicleModalOpen(false)}>Close</Button>
+                <Button><UploadCloud className="mr-2 h-4 w-4"/> Upload Document</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
-      {loading && vehicles.length > 0 && (
-         <div className="text-center py-6">
-             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-             <p className="text-muted-foreground mt-2">Refreshing vehicle data...</p>
-         </div>
-      )}
-
-      {vehicles.length === 0 && !loading && (
-        <Card className="text-center py-10 shadow-md border-dashed border-muted-foreground/50">
-          <CardContent className="flex flex-col items-center">
-            <Truck className="h-20 w-20 text-muted-foreground mb-6" />
-            <p className="text-xl text-muted-foreground mb-2">Your fleet is currently empty.</p>
-            <p className="text-sm text-muted-foreground mb-6">Register your vehicles to start managing them here.</p>
-             <DialogTrigger asChild>
-                <Button onClick={() => setIsRegisterDialogOpen(true)} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                    <PlusCircle className="mr-2 h-5 w-5"/> Register Your First Vehicle
-                </Button>
-            </DialogTrigger>
-          </CardContent>
-        </Card>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {vehicles.map((vehicle) => (
-          <Card key={vehicle.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col group border-primary/10 hover:border-primary/30">
-            <div className="relative h-52 w-full">
-                <Image 
-                    src={vehicle.imageUrl} 
-                    alt={vehicle.name} 
-                    layout="fill" 
-                    objectFit="cover" 
-                    data-ai-hint={vehicle.dataAiHint}
-                    className="transition-transform duration-300 group-hover:scale-105"
-                />
-                 <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusColorClasses(vehicle.status)}`}>
-                  {vehicle.status.replace('_', ' ')}
-                 </div>
+      <Dialog open={isDriverModalOpen} onOpenChange={setIsDriverModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Driver Profile</DialogTitle>
+             <DialogDescription>Details for {selectedDriver?.name}</DialogDescription>
+          </DialogHeader>
+          {selectedDriver && (
+            <div className="py-4 space-y-4">
+                <div className="flex items-center gap-4">
+                    <Image src={selectedDriver.imageUrl} alt={selectedDriver.name} width={80} height={80} className="rounded-full border-4 border-primary" />
+                    <div>
+                        <h3 className="text-xl font-bold">{selectedDriver.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedDriver.experience} years experience</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="font-semibold text-gray-500">Age:</div> <div>{selectedDriver.age}</div>
+                    <div className="font-semibold text-gray-500">Phone:</div> <div>{selectedDriver.phone}</div>
+                    <div className="font-semibold text-gray-500">License No:</div> <div>{selectedDriver.licenseNumber}</div>
+                    <div className="font-semibold text-gray-500">License Expiry:</div> <div className={cn(statusStyles[getDocumentStatus(selectedDriver.licenseExpiry)])}>{format(selectedDriver.licenseExpiry, 'dd MMM yyyy')}</div>
+                    <div className="font-semibold text-gray-500 col-span-2">Address:</div>
+                    <div className="col-span-2">{selectedDriver.address}</div>
+                </div>
+                <div>
+                     <h4 className="font-semibold mb-2">Documents</h4>
+                     <div className="space-y-2">
+                        {selectedDriver.documents.map(doc => (
+                             <Card key={doc.type} className="flex items-center p-2 gap-3 text-sm">
+                                {documentIcons[doc.type]}
+                                <p className="flex-grow font-medium">{doc.name}</p>
+                                <Button variant="ghost" size="sm" onClick={() => window.open('#', '_blank')}>View</Button>
+                            </Card>
+                        ))}
+                     </div>
+                </div>
             </div>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl truncate text-foreground" title={vehicle.name}>{vehicle.name}</CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
-                 {vehicle.registrationNumber}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 flex-grow">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center text-muted-foreground"><MapPin className="h-4 w-4 mr-2 text-primary" /> Location:</span>
-                <span className="font-semibold truncate text-foreground" title={vehicle.location}>{vehicle.location}</span>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center text-muted-foreground"><Fuel className="h-4 w-4 mr-2 text-orange-500" /> Fuel Level:</span>
-                  <span className={`font-semibold ${vehicle.fuelLevel < 25 ? 'text-destructive' : vehicle.fuelLevel < 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-accent'}`}>{vehicle.fuelLevel}%</span>
-                </div>
-                <Progress 
-                    value={vehicle.fuelLevel} 
-                    className={`h-2 ${getFuelProgressColor(vehicle.fuelLevel)}`} 
-                    aria-label={`Fuel level ${vehicle.fuelLevel}%`}
-                />
-              </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center text-muted-foreground"><IndianRupee className="h-4 w-4 mr-2 text-green-600" /> FASTag Balance:</span>
-                <span className={`font-semibold ${vehicle.fastagBalance < 500 ? 'text-destructive': 'text-green-700 dark:text-green-500'}`}>₹{vehicle.fastagBalance.toLocaleString()}</span>
-              </div>
-              {vehicle.rcBookUrl && (
-                <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center text-muted-foreground"><FileText className="h-4 w-4 mr-2 text-indigo-500" /> RC Book:</span>
-                    <Button 
-                        variant="link" 
-                        size="sm" 
-                        className="p-0 h-auto text-primary hover:underline"
-                        onClick={() => {
-                            toast({title: "View RC Book (Mock)", description: `Displaying RC book for ${vehicle.name}. Mock URL: ${vehicle.rcBookUrl}`});
-                            window.open(vehicle.rcBookUrl, '_blank');
-                        }}
-                    >
-                        View Document
-                    </Button>
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground text-right pt-2">
-                Last updated: {vehicle.lastUpdated}
-              </div>
-            </CardContent>
-             <CardFooter className="border-t pt-4 bg-muted/30">
-                <Button variant="outline" size="sm" className="flex-1 mr-2 hover:bg-secondary/70" onClick={() => toast({title: "Vehicle Details", description:`Showing details for ${vehicle.name} (${vehicle.registrationNumber})`})}>View Details</Button>
-                <Button size="sm" className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => toast({title: "Manage Vehicle", description:`Managing options for ${vehicle.name}`})}>Manage</Button>
-              </CardFooter>
-          </Card>
-        ))}
-      </div>
-    </div>
+      {/* Modals for Adding New Entries */}
+       <Dialog open={isAddVehicleModalOpen} onOpenChange={setIsAddVehicleModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Vehicle</DialogTitle>
+                    <DialogDescription>Fill in the details to register a new vehicle to your fleet.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={vehicleForm.handleSubmit(onAddVehicleSubmit)} className="space-y-4">
+                     <div>
+                        <Label htmlFor="number">Vehicle Number</Label>
+                        <Input id="number" {...vehicleForm.register('number')} />
+                        {vehicleForm.formState.errors.number && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.number.message}</p>}
+                    </div>
+                    <div>
+                        <Label htmlFor="type">Vehicle Type</Label>
+                        <Controller name="type" control={vehicleForm.control} render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Truck">Truck</SelectItem>
+                                    <SelectItem value="Van">Van</SelectItem>
+                                    <SelectItem value="Car">Car</SelectItem>
+                                    <SelectItem value="Auto">Auto</SelectItem>
+                                    <SelectItem value="Bike">Bike</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )} />
+                        {vehicleForm.formState.errors.type && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.type.message}</p>}
+                    </div>
+                     <div>
+                        <Label htmlFor="model">Model</Label>
+                        <Input id="model" {...vehicleForm.register('model')} />
+                        {vehicleForm.formState.errors.model && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.model.message}</p>}
+                    </div>
+                     <div>
+                        <Label htmlFor="owner">Owner Name</Label>
+                        <Input id="owner" {...vehicleForm.register('owner')} />
+                        {vehicleForm.formState.errors.owner && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.owner.message}</p>}
+                    </div>
+                    <div>
+                        <Label>Last Service Date</Label>
+                         <Controller name="lastServiceDate" control={vehicleForm.control} render={({ field }) => (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !field.value && "text-gray-500")}>
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date()} initialFocus /></PopoverContent>
+                            </Popover>
+                         )} />
+                        {vehicleForm.formState.errors.lastServiceDate && <p className="text-sm text-red-500 mt-1">{vehicleForm.formState.errors.lastServiceDate.message}</p>}
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={vehicleForm.formState.isSubmitting}>Add Vehicle</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAddDriverModalOpen} onOpenChange={setIsAddDriverModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Driver</DialogTitle>
+                    <DialogDescription>Add a new driver to your personnel list.</DialogDescription>
+                </DialogHeader>
+                 <form onSubmit={driverForm.handleSubmit(onAddDriverSubmit)} className="space-y-3 max-h-[70vh] overflow-y-auto p-1">
+                     <div>
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input id="name" {...driverForm.register('name')} />
+                        {driverForm.formState.errors.name && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.name.message}</p>}
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <Label htmlFor="age">Age</Label>
+                           <Input id="age" type="number" {...driverForm.register('age')} />
+                           {driverForm.formState.errors.age && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.age.message}</p>}
+                       </div>
+                        <div>
+                           <Label htmlFor="experience">Experience (Years)</Label>
+                           <Input id="experience" type="number" {...driverForm.register('experience')} />
+                           {driverForm.formState.errors.experience && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.experience.message}</p>}
+                       </div>
+                    </div>
+                    <div>
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input id="phone" {...driverForm.register('phone')} />
+                        {driverForm.formState.errors.phone && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.phone.message}</p>}
+                    </div>
+                     <div>
+                        <Label htmlFor="licenseNumber">License Number</Label>
+                        <Input id="licenseNumber" {...driverForm.register('licenseNumber')} />
+                        {driverForm.formState.errors.licenseNumber && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.licenseNumber.message}</p>}
+                    </div>
+                     <div>
+                        <Label>License Expiry Date</Label>
+                         <Controller name="licenseExpiry" control={driverForm.control} render={({ field }) => (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !field.value && "text-gray-500")}>
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                            </Popover>
+                         )} />
+                        {driverForm.formState.errors.licenseExpiry && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.licenseExpiry.message}</p>}
+                    </div>
+                     <div>
+                        <Label htmlFor="address">Address</Label>
+                        <Input id="address" {...driverForm.register('address')} />
+                        {driverForm.formState.errors.address && <p className="text-sm text-red-500 mt-1">{driverForm.formState.errors.address.message}</p>}
+                    </div>
+                    <DialogFooter className="pt-4">
+                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={driverForm.formState.isSubmitting}>Add Driver</Button>
+                    </DialogFooter>
+                 </form>
+            </DialogContent>
+        </Dialog>
+    </>
   );
 }
+
+    
