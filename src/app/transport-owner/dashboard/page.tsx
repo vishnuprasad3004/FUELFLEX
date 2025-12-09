@@ -7,7 +7,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee, Satellite, TrendingUp, ArrowDown, Wallet, Percent } from 'lucide-react';
+import { Truck, Fuel, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee, Satellite, TrendingUp, ArrowDown, Wallet, Percent, Download } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
@@ -21,9 +21,10 @@ import { uploadFile as uploadFileToStorage } from '@/services/storage-service';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { DateRange } from 'react-day-picker';
 
 
 // --- DATA MODELS ---
@@ -146,25 +147,32 @@ const initialVehicles: Vehicle[] = [
   },
 ];
 
-const yearlyRevenueData = [
-    { name: 'Jan', revenue: 400000, expenses: 240000, profit: 160000 },
-    { name: 'Feb', revenue: 300000, expenses: 190000, profit: 110000 },
-    { name: 'Mar', revenue: 500000, expenses: 300000, profit: 200000 },
-    { name: 'Apr', revenue: 450000, expenses: 280000, profit: 170000 },
-    { name: 'May', revenue: 600000, expenses: 350000, profit: 250000 },
-    { name: 'Jun', revenue: 550000, expenses: 320000, profit: 230000 },
-    { name: 'Jul', revenue: 680000, expenses: 400000, profit: 280000 },
-    { name: 'Aug', revenue: 650000, expenses: 380000, profit: 270000 },
-    { name: 'Sep', revenue: 720000, expenses: 420000, profit: 300000 },
-    { name: 'Oct', revenue: 800000, expenses: 450000, profit: 350000 },
-    { name: 'Nov', revenue: 750000, expenses: 430000, profit: 320000 },
-    { name: 'Dec', revenue: 900000, expenses: 500000, profit: 400000 },
-];
+// Enhanced dummy data for analytics
+const generateMonthlyDataForVehicle = (vehicleId: string, year: number) => {
+    const data = [];
+    const baseRevenue = 300000 + Math.random() * 200000;
+    for (let i = 0; i < 12; i++) {
+        const monthRevenue = baseRevenue * (1 + (Math.random() - 0.5) * 0.4); // +/- 20% variation
+        const monthExpenses = monthRevenue * (0.6 + Math.random() * 0.15); // 60-75% of revenue
+        data.push({
+            date: new Date(year, i, 1),
+            vehicleId,
+            name: new Date(year, i, 1).toLocaleString('default', { month: 'short' }),
+            revenue: Math.round(monthRevenue),
+            expenses: Math.round(monthExpenses),
+            profit: Math.round(monthRevenue - monthExpenses),
+        });
+    }
+    return data;
+};
 
-const totalRevenue = yearlyRevenueData.reduce((acc, item) => acc + item.revenue, 0);
-const totalExpenses = yearlyRevenueData.reduce((acc, item) => acc + item.expenses, 0);
-const netProfit = totalRevenue - totalExpenses;
-const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+const yearlyRevenueData = [
+    ...generateMonthlyDataForVehicle('V01', 2024),
+    ...generateMonthlyDataForVehicle('V02', 2024),
+    ...generateMonthlyDataForVehicle('V03', 2024),
+    ...generateMonthlyDataForVehicle('V04', 2024),
+    ...generateMonthlyDataForVehicle('V05', 2024),
+];
 
 
 // --- ZOD SCHEMAS for Forms ---
@@ -254,14 +262,67 @@ export default function TransportOwnerDashboardPage() {
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
 
+  // Filters for vehicle list
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
+
+  // Filters for analytics
+  const [analyticsVehicleId, setAnalyticsVehicleId] = useState('all');
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<DateRange | undefined>({
+      from: subDays(new Date(), 365),
+      to: new Date(),
+  });
 
   const filteredVehicles = useMemo(() => {
     return vehicles
       .filter(v => filterType === 'all' || v.type === filterType)
       .filter(v => v.number.toLowerCase().includes(searchTerm.toLowerCase()) || v.model.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [vehicles, searchTerm, filterType]);
+
+  // Memoized analytics data
+  const filteredAnalyticsData = useMemo(() => {
+    return yearlyRevenueData.filter(d => {
+        const isVehicleMatch = analyticsVehicleId === 'all' || d.vehicleId === analyticsVehicleId;
+        const isDateMatch = analyticsDateRange?.from && analyticsDateRange?.to 
+            ? d.date >= analyticsDateRange.from && d.date <= analyticsDateRange.to
+            : true;
+        return isVehicleMatch && isDateMatch;
+    });
+  }, [analyticsVehicleId, analyticsDateRange]);
+
+  const aggregatedAnalytics = useMemo(() => {
+      if (filteredAnalyticsData.length === 0) {
+          return { totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 };
+      }
+      const totalRevenue = filteredAnalyticsData.reduce((acc, item) => acc + item.revenue, 0);
+      const totalExpenses = filteredAnalyticsData.reduce((acc, item) => acc + item.expenses, 0);
+      const netProfit = totalRevenue - totalExpenses;
+      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+      return { totalRevenue, totalExpenses, netProfit, profitMargin };
+  }, [filteredAnalyticsData]);
+
+  const monthlyChartData = useMemo(() => {
+      const monthlyMap = new Map<string, { name: string; revenue: number; expenses: number; profit: number }>();
+      filteredAnalyticsData.forEach(d => {
+          const monthName = format(d.date, 'MMM yy');
+          if (!monthlyMap.has(monthName)) {
+              monthlyMap.set(monthName, { name: monthName, revenue: 0, expenses: 0, profit: 0 });
+          }
+          const monthData = monthlyMap.get(monthName)!;
+          monthData.revenue += d.revenue;
+          monthData.expenses += d.expenses;
+          monthData.profit += d.profit;
+      });
+      return Array.from(monthlyMap.values());
+  }, [filteredAnalyticsData]);
+
+  const handleDownloadReport = () => {
+      toast({
+          title: "Downloading Report",
+          description: "A CSV of the current analytics view is being prepared for download. (This is a mock action)",
+      });
+  };
 
   const viewVehicleDetails = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -352,7 +413,61 @@ export default function TransportOwnerDashboardPage() {
         <main className="container mx-auto p-4 md:p-6 lg:p-8">
             {/* Profit Analytics Dashboard Section */}
             <section className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Fleet Analytics: Yearly Performance</h2>
+                <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 md:mb-0">Fleet Analytics</h2>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Select value={analyticsVehicleId} onValueChange={setAnalyticsVehicleId}>
+                            <SelectTrigger className="w-full sm:w-[200px]">
+                                <SelectValue placeholder="Select Vehicle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Vehicles</SelectItem>
+                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.number}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full sm:w-[300px] justify-start text-left font-normal",
+                                        !analyticsDateRange && "text-muted-foreground"
+                                    )}
+                                >
+                                    <Calendar className="mr-2 h-4 w-4" />
+                                    {analyticsDateRange?.from ? (
+                                        analyticsDateRange.to ? (
+                                            <>
+                                                {format(analyticsDateRange.from, "LLL dd, y")} -{" "}
+                                                {format(analyticsDateRange.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(analyticsDateRange.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarPicker
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={analyticsDateRange?.from}
+                                    selected={analyticsDateRange}
+                                    onSelect={setAnalyticsDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                         <Button onClick={handleDownloadReport} variant="outline">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                        </Button>
+                    </div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -360,8 +475,8 @@ export default function TransportOwnerDashboardPage() {
                             <Wallet className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</div>
-                            <p className="text-xs text-muted-foreground">+20.1% from last year</p>
+                            <div className="text-2xl font-bold">₹{aggregatedAnalytics.totalRevenue.toLocaleString('en-IN')}</div>
+                            <p className="text-xs text-muted-foreground">Based on selected filters</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -370,7 +485,7 @@ export default function TransportOwnerDashboardPage() {
                             <ArrowDown className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">₹{totalExpenses.toLocaleString('en-IN')}</div>
+                            <div className="text-2xl font-bold">₹{aggregatedAnalytics.totalExpenses.toLocaleString('en-IN')}</div>
                             <p className="text-xs text-muted-foreground">Fuel, Tolls, Maintenance, Fines</p>
                         </CardContent>
                     </Card>
@@ -380,8 +495,8 @@ export default function TransportOwnerDashboardPage() {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">₹{netProfit.toLocaleString('en-IN')}</div>
-                            <p className="text-xs text-muted-foreground">+15.2% from last year</p>
+                            <div className="text-2xl font-bold">₹{aggregatedAnalytics.netProfit.toLocaleString('en-IN')}</div>
+                            <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -390,23 +505,23 @@ export default function TransportOwnerDashboardPage() {
                             <Percent className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{profitMargin.toFixed(2)}%</div>
+                            <div className="text-2xl font-bold">{aggregatedAnalytics.profitMargin.toFixed(2)}%</div>
                             <p className="text-xs text-muted-foreground">Net Profit / Revenue</p>
                         </CardContent>
                     </Card>
                 </div>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Revenue & Profit Analysis (Yearly)</CardTitle>
-                        <CardDescription>Monthly breakdown of revenue, expenses, and profit.</CardDescription>
+                        <CardTitle>Financials Over Time</CardTitle>
+                        <CardDescription>Monthly breakdown based on your filters.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={350}>
-                            <BarChart data={yearlyRevenueData}>
+                            <BarChart data={monthlyChartData}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="name" />
                                 <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
-                                <Tooltip formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`} />
+                                <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
                                 <Legend />
                                 <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
                                 <Bar dataKey="expenses" fill="#82ca9d" name="Expenses" />
