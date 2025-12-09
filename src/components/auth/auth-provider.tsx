@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO true TO BYPASS AUTH AND MOCK A USER.
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
-const DEVELOPMENT_BYPASS_AUTH = false; 
+const DEVELOPMENT_BYPASS_AUTH = true; 
 const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.BUYER_SELLER, UserRole.TRANSPORT_OWNER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
