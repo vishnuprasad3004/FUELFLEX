@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO true TO BYPASS AUTH AND MOCK A USER.
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS MUST be 'false' for production deployment.
-const DEVELOPMENT_BYPASS_AUTH = false; 
+const DEVELOPMENT_BYPASS_AUTH = true; 
 const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.BUYER_SELLER, UserRole.TRANSPORT_OWNER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // Ensure profile exists and has admin role
                 let profile = await getUserProfile(user.uid);
                 if (!profile || profile.role !== UserRole.ADMIN) {
-                    await createUserProfile(user.uid, user.email, UserRole.ADMIN, { displayName: 'Admin' });
+                    await createUserProfile(user.uid, user.email, UserRole.ADMIN, { displayName: "Admin" });
                     profile = await getUserProfile(user.uid); // re-fetch
                 }
                 setUserProfile(profile);

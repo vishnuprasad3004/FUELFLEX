@@ -9,7 +9,7 @@ import { UserRole } from '@/models/user';
 // --- DEVELOPMENT BYPASS CONTROL ---
 // This must be consistent with the one in AuthProvider.
 // It MUST be false for production.
-const DEVELOPMENT_BYPASS_AUTH_REDIRECT = false; 
+const DEVELOPMENT_BYPASS_AUTH_REDIRECT = true; 
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
