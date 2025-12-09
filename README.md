@@ -1,4 +1,4 @@
-git# FuelFlex Transport Platform - Flutter Edition
+# FuelFlex Transport Platform - Flutter Edition
 
 This project is a smart goods transport and fuel credit platform. The frontend is built with Flutter, and the backend services, including AI-powered features, are provided by a Next.js application using Genkit and Firebase.
 
