@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
-import { getUserProfile, type UserProfile } from '@/services/user-service'; 
+import { createUserProfile, getUserProfile, type UserProfile } from '@/services/user-service'; 
 import { Loader2 } from 'lucide-react';
 import { UserRole } from '@/models/user'; 
 
@@ -24,8 +24,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // --- DEVELOPMENT BYPASS CONTROL ---
 // SET TO true TO BYPASS AUTH AND MOCK A USER.
 // SET TO false FOR NORMAL AUTHENTICATION.
-// WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
-const DEVELOPMENT_BYPASS_AUTH = true; 
+// WARNING: THIS MUST be 'false' for production deployment.
+const DEVELOPMENT_BYPASS_AUTH = false; 
 const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.BUYER_SELLER, UserRole.TRANSPORT_OWNER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isTransportOwner = userProfile?.role === UserRole.TRANSPORT_OWNER;
   const isBuyerSeller = userProfile?.role === UserRole.BUYER_SELLER;
 
-  if (loading && !DEVELOPMENT_BYPASS_AUTH) { 
+  if (loading) { // Display loader regardless of bypass when initially loading
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

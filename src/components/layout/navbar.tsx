@@ -9,19 +9,30 @@ import { auth } from '@/firebase/firebase-config';
 import { useRouter } from 'next/navigation';
 import { LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingCart, TruckIcon, UserCog, HomeIcon } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
-// import Image from 'next/image'; // Logo removed
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Navbar() {
   const { currentUser, userProfile, isAdmin, isTransportOwner, isBuyerSeller } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push('/login'); // Redirect to login page after sign out
+      // Force a hard reload to the login page to ensure all state is cleared.
+      // This is more robust than a soft navigation with router.push().
+      window.location.href = '/login';
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
     } catch (error) {
       console.error("Error signing out:", error);
-      // Optionally, show an error toast to the user
+      toast({
+        title: "Sign-out Failed",
+        description: "An error occurred while signing out. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -29,8 +40,6 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b shadow-sm">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2 text-2xl font-bold text-primary">
-          {/* Logo removed from here */}
-          {/* <Image src="/logo.png" alt="FuelFlex Logo" width={40} height={40} data-ai-hint="logo transport" /> */}
           <span>FuelFlex</span>
         </Link>
 
@@ -77,7 +86,7 @@ export default function Navbar() {
               </Link>
               <Link href="/create-account" legacyBehavior passHref>
                 <Button className="text-sm sm:text-base">
-                  <UserPlus className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Create Account
+                  <UserPlus className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm-w-5" /> Create Account
                 </Button>
               </Link>
             </>
