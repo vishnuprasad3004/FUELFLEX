@@ -16,11 +16,37 @@ import type { Booking } from '@/models/booking';
 import { BookingStatus, RepaymentStatus } from '@/models/booking'; 
 import type { UserProfile } from '@/models/user'; 
 import { UserRole as UserRoleEnum } from '@/models/user'; 
-import { format } from 'date-fns';
-import { ArrowUpDown, FilterIcon, Eye, Edit3, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud, PlusCircle, Loader2 } from 'lucide-react'; 
+import { format, subDays } from 'date-fns';
+import { ArrowUpDown, FilterIcon, Eye, Edit3, ChevronLeft, ChevronRight, RefreshCw, Users, UploadCloud, PlusCircle, Loader2, Wallet, TrendingUp, ArrowDown, Percent, Download, Calendar as CalendarIcon } from 'lucide-react'; 
 import { Separator } from '@/components/ui/separator'; 
 import { useToast } from "@/components/ui/use-toast";
-import { uploadFile as uploadFileToStorage, getFileUrl as getFileUrlFromStorage, listFilesAndFolders as listItemsFromStorage } from '@/services/storage-service';
+import { uploadFile as uploadFileToStorage, listFilesAndFolders as listItemsFromStorage } from '@/services/storage-service';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+
+
+// --- MOCK DATA FOR ADMIN ANALYTICS ---
+// In a real scenario, this would be fetched via an aggregated API endpoint from the backend
+const generateMonthlyDataForPlatform = (year: number) => {
+    const data = [];
+    const baseRevenue = 2500000; // Larger base for whole platform
+    for (let i = 0; i < 12; i++) {
+        const monthRevenue = baseRevenue * (1 + (Math.random() - 0.4) * 0.5);
+        const monthExpenses = monthRevenue * (0.65 + Math.random() * 0.1);
+        data.push({
+            date: new Date(year, i, 1),
+            name: new Date(year, i, 1).toLocaleString('default', { month: 'short' }),
+            revenue: Math.round(monthRevenue),
+            expenses: Math.round(monthExpenses),
+            profit: Math.round(monthRevenue - monthExpenses),
+        });
+    }
+    return data;
+};
+const yearlyPlatformRevenueData = generateMonthlyDataForPlatform(2024);
 
 
 const ITEMS_PER_PAGE = 10;
@@ -61,6 +87,9 @@ export default function AdminDashboardPage() {
   const [userLastVisible, setUserLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [userFirstVisible, setUserFirstVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [userHasMore, setUserHasMore] = useState(true);
+
+  // Admin Analytics
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 365), to: new Date() });
 
 
   // Storage Demo states (now uses mock storage service)
@@ -224,6 +253,36 @@ export default function AdminDashboardPage() {
   }, [users, userEmailFilter]);
 
 
+  // Memoized analytics data
+  const filteredAnalyticsData = useMemo(() => {
+    return yearlyPlatformRevenueData.filter(d => {
+        const isDateMatch = analyticsDateRange?.from && analyticsDateRange?.to 
+            ? d.date >= analyticsDateRange.from && d.date <= analyticsDateRange.to
+            : true;
+        return isDateMatch;
+    });
+  }, [analyticsDateRange]);
+
+  const aggregatedAnalytics = useMemo(() => {
+      if (filteredAnalyticsData.length === 0) {
+          return { totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 };
+      }
+      const totalRevenue = filteredAnalyticsData.reduce((acc, item) => acc + item.revenue, 0);
+      const totalExpenses = filteredAnalyticsData.reduce((acc, item) => acc + item.expenses, 0);
+      const netProfit = totalRevenue - totalExpenses;
+      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+      return { totalRevenue, totalExpenses, netProfit, profitMargin };
+  }, [filteredAnalyticsData]);
+
+    const handleDownloadReport = () => {
+      toast({
+          title: "Downloading Report",
+          description: "A CSV of the current analytics view is being prepared for download. (This is a mock action)",
+      });
+  };
+
+
   const handleBookingSort = (column: keyof Booking | 'estimatedTransportCost' | 'createdAt') => {
     setBookingSortDirection(prev => bookingSortColumn === column && prev === 'asc' ? 'desc' : 'asc');
     setBookingSortColumn(column); 
@@ -365,6 +424,66 @@ export default function AdminDashboardPage() {
           <CardDescription className="text-muted-foreground">Monitor trips, repayments, users, and platform activity.</CardDescription>
         </CardHeader>
       </Card>
+      
+      {/* Platform Analytics Section */}
+      <section className="mb-8">
+          <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
+              <h2 className="text-2xl font-bold text-foreground mb-2 md:mb-0">Platform Analytics</h2>
+              <div className="flex flex-col sm:flex-row gap-2">
+                  <Popover>
+                      <PopoverTrigger asChild>
+                          <Button id="date" variant={"outline"} className={cn("w-full sm:w-[300px] justify-start text-left font-normal", !analyticsDateRange && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {analyticsDateRange?.from ? (analyticsDateRange.to ? (<>{format(analyticsDateRange.from, "LLL dd, y")} - {format(analyticsDateRange.to, "LLL dd, y")}</>) : (format(analyticsDateRange.from, "LLL dd, y"))) : (<span>Pick a date</span>)}
+                          </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar initialFocus mode="range" defaultMonth={analyticsDateRange?.from} selected={analyticsDateRange} onSelect={setAnalyticsDateRange} numberOfMonths={2} />
+                      </PopoverContent>
+                  </Popover>
+                  <Button onClick={handleDownloadReport} variant="outline"><Download className="mr-2 h-4 w-4" />Download</Button>
+              </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Revenue</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                  <CardContent><div className="text-2xl font-bold">₹{aggregatedAnalytics.totalRevenue.toLocaleString('en-IN')}</div><p className="text-xs text-muted-foreground">Platform-wide revenue</p></CardContent>
+              </Card>
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Expenses</CardTitle><ArrowDown className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                  <CardContent><div className="text-2xl font-bold">₹{aggregatedAnalytics.totalExpenses.toLocaleString('en-IN')}</div><p className="text-xs text-muted-foreground">Platform operational costs</p></CardContent>
+              </Card>
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Net Profit</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                  <CardContent><div className="text-2xl font-bold">₹{aggregatedAnalytics.netProfit.toLocaleString('en-IN')}</div><p className="text-xs text-muted-foreground">Total Revenue - Expenses</p></CardContent>
+              </Card>
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Profit Margin</CardTitle><Percent className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                  <CardContent><div className="text-2xl font-bold">{aggregatedAnalytics.profitMargin.toFixed(2)}%</div><p className="text-xs text-muted-foreground">Net Profit / Revenue</p></CardContent>
+              </Card>
+          </div>
+          <Card>
+              <CardHeader><CardTitle>Financials Over Time</CardTitle><CardDescription>Monthly breakdown based on your filters.</CardDescription></CardHeader>
+              <CardContent>
+                  <ResponsiveContainer width="100%" height={350}>
+                      <BarChart data={filteredAnalyticsData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis tickFormatter={(value) => `₹${Number(value) / 100000}L`} />
+                          <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
+                          <Legend />
+                          <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
+                          <Bar dataKey="expenses" fill="#82ca9d" name="Expenses" />
+                          <Bar dataKey="profit" fill="#ffc658" name="Profit" />
+                      </BarChart>
+                  </ResponsiveContainer>
+              </CardContent>
+          </Card>
+      </section>
+      
+      <Separator className="my-12" />
+
 
       {/* Trip Monitoring Section */}
       <Card className="mb-8 shadow-lg">
@@ -593,3 +712,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
