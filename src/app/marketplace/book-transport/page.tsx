@@ -9,14 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Select no longer needed for vehicleType
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Truck, Send, ArrowLeft, CalendarIcon, MapPinIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Loader2, Truck, Send, ArrowLeft, CalendarIcon, MapPinIcon, ArrowRight, IndianRupee, Milestone, Clock } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/firebase/firebase-config';
-// import { VEHICLE_TYPES, BookingStatus, RepaymentStatus, type BookingVehicleType } from '@/models/booking'; // VEHICLE_TYPES not needed
 import { BookingStatus, RepaymentStatus } from '@/models/booking';
 import type { Good } from '@/models/goods';
 import { useAuthRedirect } from '@/hooks/use-auth-redirect';
@@ -26,7 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils"; 
 import { calculatePrice, type CalculatePriceInput, type CalculatePriceOutput } from '@/ai/flows/ai-powered-pricing';
-
+import { Separator } from '@/components/ui/separator';
 
 const bookTransportSchema = z.object({
   // Pickup (could be from Goods or manual)
@@ -44,9 +42,6 @@ const bookTransportSchema = z.object({
     (val) => parseFloat(String(val)),
     z.number().positive("Weight must be a positive number")
   ),
-  // vehicleType: z.string().refine(val => VEHICLE_TYPES.includes(val as any), { // Removed vehicleType
-  //   message: `Invalid vehicle type. Must be one of: ${VEHICLE_TYPES.join(', ')}`
-  // }),
   preferredPickupDate: z.date().optional(),
   specialInstructions: z.string().optional(),
 });
@@ -66,9 +61,6 @@ export default function BookTransportPage() {
   const [priceEstimate, setPriceEstimate] = useState<CalculatePriceOutput | null>(null);
   const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
 
-  const [isPickupMapOpen, setIsPickupMapOpen] = useState(false);
-  const [isDropoffMapOpen, setIsDropoffMapOpen] = useState(false);
-
   const {
     register,
     handleSubmit,
@@ -85,7 +77,7 @@ export default function BookTransportPage() {
 
   const watchedFieldsForEstimation = watch([
     "pickupLatitude", "pickupLongitude", "dropoffLatitude", "dropoffLongitude", 
-    "weightKg" // Removed vehicleType
+    "weightKg"
   ]);
 
   useEffect(() => {
@@ -135,12 +127,10 @@ export default function BookTransportPage() {
       setValue('pickupLatitude', mockSelectedLocation.lat, { shouldValidate: true });
       setValue('pickupLongitude', mockSelectedLocation.lng, { shouldValidate: true });
       setValue('pickupAddress', mockSelectedLocation.address, { shouldValidate: true });
-      setIsPickupMapOpen(false); 
     } else {
       setValue('dropoffLatitude', mockSelectedLocation.lat, { shouldValidate: true });
       setValue('dropoffLongitude', mockSelectedLocation.lng, { shouldValidate: true });
       setValue('dropoffAddress', mockSelectedLocation.address, { shouldValidate: true });
-      setIsDropoffMapOpen(false); 
     }
     toast({ title: "Location Selected (Mock)", description: `${mockSelectedLocation.address} set for ${locationType}.` });
   }, [setValue, toast]);
@@ -150,7 +140,7 @@ export default function BookTransportPage() {
     const allValid = await trigger([
         "pickupAddress", "pickupLatitude", "pickupLongitude",
         "dropoffAddress", "dropoffLatitude", "dropoffLongitude",
-        "weightKg" // Removed vehicleType
+        "weightKg"
     ]);
 
     if (!allValid) {
@@ -159,9 +149,9 @@ export default function BookTransportPage() {
     }
 
     const values = getValues();
-    const { pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude, weightKg } = values; // Removed vehicleType
+    const { pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude, weightKg } = values;
 
-    if (pickupLatitude == null || pickupLongitude == null || dropoffLatitude == null || dropoffLongitude == null || !weightKg ) { // Removed vehicleType check
+    if (pickupLatitude == null || pickupLongitude == null || dropoffLatitude == null || dropoffLongitude == null || !weightKg ) {
       toast({
         title: "Missing Information",
         description: "Please ensure pickup/drop-off locations (selected via map) and weight are filled to get an estimate.",
@@ -179,7 +169,6 @@ export default function BookTransportPage() {
         destinationLatitude: dropoffLatitude,
         destinationLongitude: dropoffLongitude,
         loadWeightKg: weightKg,
-        // vehicleType, // Removed vehicleType
       };
       const result = await calculatePrice(input);
       setPriceEstimate(result);
@@ -203,9 +192,9 @@ export default function BookTransportPage() {
       return;
     }
     
-    if (data.pickupLatitude == null || data.pickupLongitude == null || data.dropoffLatitude == null || data.dropoffLongitude == null) {
-        toast({title: "Location Incomplete", description: "Coordinates are missing. Please select locations on the map.", variant: "warning"});
-        return; 
+    if (!priceEstimate || priceEstimate.estimatedPrice <= 0) {
+      toast({ title: "Price Not Estimated", description: "Please get a valid price estimate before submitting.", variant: "warning" });
+      return;
     }
 
     setLoading(true);
@@ -225,14 +214,13 @@ export default function BookTransportPage() {
         },
         goodsType: data.goodsType,
         weightKg: data.weightKg,
-        // vehicleType: data.vehicleType as BookingVehicleType, // Removed vehicleType
         preferredPickupDate: data.preferredPickupDate || null,
         specialInstructions: data.specialInstructions || '',
         status: BookingStatus.PENDING,
         estimatedTransportCost: priceEstimate?.estimatedPrice || 0, 
         repayStatus: RepaymentStatus.NOT_APPLICABLE, 
-        createdAt: new Date(), // serverTimestamp() caused issues in arrays, using client date for now.
-        updatedAt: new Date(), // serverTimestamp()
+        createdAt: new Date(),
+        updatedAt: new Date(),
         actionLogs: [{
           timestamp: new Date(), 
           actorId: currentUser.uid,
@@ -272,174 +260,161 @@ export default function BookTransportPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <Button variant="outline" onClick={() => router.back()} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      <Button variant="outline" onClick={() => router.back()} className="mb-6 group">
+        <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back
       </Button>
-      <Card className="max-w-3xl mx-auto shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold flex items-center"><Truck className="mr-3 h-7 w-7" /> Book Goods Transport</CardTitle>
-          <CardDescription>Enter details for your shipment. Locations are selected via map. Fields marked * are required.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Pickup Section */}
-            <fieldset className="border p-4 rounded-md">
-              <legend className="text-lg font-semibold px-1">Pickup Details</legend>
-              <div className="space-y-4 mt-2">
-                <div>
-                  <Label htmlFor="pickupAddress">Pickup Address*</Label>
-                  <Input id="pickupAddress" {...register('pickupAddress')} placeholder="Address auto-filled by map" disabled={!!goodsId && !!getValues("pickupAddress")} readOnly />
-                  {errors.pickupAddress && <p className="text-sm text-destructive mt-1">{errors.pickupAddress.message}</p>}
-                </div>
-                <input type="hidden" {...register('pickupLatitude')} />
-                <input type="hidden" {...register('pickupLongitude')} />
-                {errors.pickupLatitude && <p className="text-sm text-destructive mt-1">{errors.pickupLatitude.message}</p>}
-                {errors.pickupLongitude && <p className="text-sm text-destructive mt-1">{errors.pickupLongitude.message}</p>}
-                
-                {(!goodsId || !getValues("pickupLatitude")) && ( 
-                    <Button type="button" variant="outline" onClick={() => handleSelectOnMap('pickup')} className="w-full">
-                        <MapPinIcon className="mr-2 h-4 w-4" /> Select Pickup on Map (Mock)
-                    </Button>
-                )}
-                {getValues("pickupLatitude") && getValues("pickupLongitude") && (
-                    <p className="text-xs text-muted-foreground">
-                        Selected Pickup: {getValues("pickupAddress")?.substring(0,30)}... (Lat: {getValues("pickupLatitude")?.toFixed(4)}, Lng: {getValues("pickupLongitude")?.toFixed(4)})
-                    </p>
-                )}
-              </div>
-            </fieldset>
-
-            {/* Drop-off Section */}
-            <fieldset className="border p-4 rounded-md">
-              <legend className="text-lg font-semibold px-1">Drop-off Details</legend>
-              <div className="space-y-4 mt-2">
-                <div>
-                  <Label htmlFor="dropoffAddress">Drop-off Address*</Label>
-                  <Input id="dropoffAddress" {...register('dropoffAddress')} placeholder="Address auto-filled by map" readOnly/>
-                  {errors.dropoffAddress && <p className="text-sm text-destructive mt-1">{errors.dropoffAddress.message}</p>}
-                </div>
-                <input type="hidden" {...register('dropoffLatitude')} />
-                <input type="hidden" {...register('dropoffLongitude')} />
-                {errors.dropoffLatitude && <p className="text-sm text-destructive mt-1">{errors.dropoffLatitude.message}</p>}
-                {errors.dropoffLongitude && <p className="text-sm text-destructive mt-1">{errors.dropoffLongitude.message}</p>}
-
-                <Button type="button" variant="outline" onClick={() => handleSelectOnMap('dropoff')} className="w-full">
-                  <MapPinIcon className="mr-2 h-4 w-4" /> Select Drop-off on Map (Mock)
-                </Button>
-                 {getValues("dropoffLatitude") && getValues("dropoffLongitude") && (
-                    <p className="text-xs text-muted-foreground">
-                        Selected Drop-off: {getValues("dropoffAddress")?.substring(0,30)}... (Lat: {getValues("dropoffLatitude")?.toFixed(4)}, Lng: {getValues("dropoffLongitude")?.toFixed(4)})
-                    </p>
-                )}
-              </div>
-            </fieldset>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             
-            {/* Goods Details Section */}
-            <fieldset className="border p-4 rounded-md">
-              <legend className="text-lg font-semibold px-1">Goods Details</legend>
-              <div className="space-y-4 mt-2">
-                 <div>
-                  <Label htmlFor="goodsType">Type/Description of Goods*</Label>
-                  <Input id="goodsType" {...register('goodsType')} placeholder="e.g., Electronics, Furniture" disabled={!!goodsId && !!getValues("goodsType")} />
-                  {errors.goodsType && <p className="text-sm text-destructive mt-1">{errors.goodsType.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="weightKg">Total Weight (kg)*</Label>
-                  <Input id="weightKg" type="number" step="0.1" {...register('weightKg')} placeholder="e.g., 150.5" disabled={!!goodsId && getValues("weightKg") > 0} />
-                  {errors.weightKg && <p className="text-sm text-destructive mt-1">{errors.weightKg.message}</p>}
-                </div>
-              </div>
-            </fieldset>
-
-            {/* Transport Preferences */}
-             <fieldset className="border p-4 rounded-md">
-              <legend className="text-lg font-semibold px-1">Transport Preferences</legend>
-              <div className="space-y-4 mt-2">
-                {/* <div> // Vehicle Type Select Removed
-                  <Label htmlFor="vehicleType">Vehicle Type*</Label>
-                  <Controller
-                    name="vehicleType"
-                    control={control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger id="vehicleType"><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
-                        <SelectContent>
-                          {VEHICLE_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {errors.vehicleType && <p className="text-sm text-destructive mt-1">{errors.vehicleType.message}</p>}
-                </div> */}
-                <div>
-                    <Label htmlFor="preferredPickupDate">Preferred Pickup Date (Optional)</Label>
-                    <Controller
-                        name="preferredPickupDate"
-                        control={control}
-                        render={({ field }) => (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+            <Card className="shadow-lg border-border">
+                <CardHeader>
+                    <CardTitle className="text-2xl font-bold flex items-center"><Truck className="mr-3 h-7 w-7 text-primary" /> Shipment Details</CardTitle>
+                    <CardDescription>Enter details for your shipment. Fields marked * are required.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* From/To Section */}
+                    <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+                        {/* From */}
+                        <div className="flex-1 w-full">
+                            <Label htmlFor="pickupAddress" className="flex items-center mb-1"><MapPinIcon className="mr-2 h-4 w-4 text-muted-foreground"/>From*</Label>
+                            <Input id="pickupAddress" {...register('pickupAddress')} placeholder="Pickup address (from map)" readOnly disabled={!!goodsId} />
+                            <Button type="button" variant="outline" onClick={() => handleSelectOnMap('pickup')} className="w-full mt-2" disabled={!!goodsId}>
+                                Select Pickup on Map
                             </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                                disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} 
+                            {errors.pickupAddress && <p className="text-sm text-destructive mt-1">{errors.pickupAddress.message}</p>}
+                        </div>
+                        <ArrowRight className="h-6 w-6 text-muted-foreground hidden md:block" />
+                        {/* To */}
+                        <div className="flex-1 w-full">
+                            <Label htmlFor="dropoffAddress" className="flex items-center mb-1"><MapPinIcon className="mr-2 h-4 w-4 text-muted-foreground"/>To*</Label>
+                            <Input id="dropoffAddress" {...register('dropoffAddress')} placeholder="Drop-off address (from map)" readOnly />
+                            <Button type="button" variant="outline" onClick={() => handleSelectOnMap('dropoff')} className="w-full mt-2">
+                                Select Drop-off on Map
+                            </Button>
+                            {errors.dropoffAddress && <p className="text-sm text-destructive mt-1">{errors.dropoffAddress.message}</p>}
+                        </div>
+                    </div>
+                     <Separator />
+                    {/* Goods Details Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div>
+                          <Label htmlFor="goodsType">Type/Description of Goods*</Label>
+                          <Input id="goodsType" {...register('goodsType')} placeholder="e.g., Electronics, Furniture" disabled={!!goodsId && !!getValues("goodsType")} />
+                          {errors.goodsType && <p className="text-sm text-destructive mt-1">{errors.goodsType.message}</p>}
+                        </div>
+                        <div>
+                          <Label htmlFor="weightKg">Total Weight (kg)*</Label>
+                          <Input id="weightKg" type="number" step="0.1" {...register('weightKg')} placeholder="e.g., 150.5" disabled={!!goodsId && getValues("weightKg") > 0} />
+                          {errors.weightKg && <p className="text-sm text-destructive mt-1">{errors.weightKg.message}</p>}
+                        </div>
+                    </div>
+                     <Separator />
+                    {/* Preferences */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <Label htmlFor="preferredPickupDate">Preferred Pickup Date (Optional)</Label>
+                            <Controller
+                                name="preferredPickupDate"
+                                control={control}
+                                render={({ field }) => (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} 
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                )}
                             />
-                            </PopoverContent>
-                        </Popover>
-                        )}
-                    />
-                    {errors.preferredPickupDate && <p className="text-sm text-destructive mt-1">{errors.preferredPickupDate.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="specialInstructions">Special Instructions (Optional)</Label>
-                  <Textarea id="specialInstructions" {...register('specialInstructions')} placeholder="e.g., Fragile items, call before arrival." />
-                </div>
-              </div>
-            </fieldset>
+                            {errors.preferredPickupDate && <p className="text-sm text-destructive mt-1">{errors.preferredPickupDate.message}</p>}
+                        </div>
+                        <div>
+                          <Label htmlFor="specialInstructions">Special Instructions (Optional)</Label>
+                          <Textarea id="specialInstructions" {...register('specialInstructions')} placeholder="e.g., Fragile items" />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            </form>
+        </div>
 
-            {/* Price Estimation */}
-            <Card className="my-6 bg-muted/50">
+        {/* Right Sidebar - Summary & Actions */}
+        <div className="lg:col-span-1 space-y-8">
+            <Card className="shadow-lg sticky top-24 border-primary/30">
               <CardHeader>
-                <CardTitle className="text-lg">Price Estimation</CardTitle>
-                <CardDescription>Get an estimated cost for your transport. This is subject to final confirmation.</CardDescription>
+                <CardTitle className="text-xl">Quote & Summary</CardTitle>
+                <CardDescription>Review your trip estimate below.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button type="button" variant="outline" onClick={handleGetPriceEstimate} disabled={isEstimatingPrice} className="w-full md:w-auto">
+              <CardContent className="space-y-4">
+                 <Button type="button" variant="secondary" onClick={handleGetPriceEstimate} disabled={isEstimatingPrice} className="w-full">
                   {isEstimatingPrice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Get Price Estimate
+                  {priceEstimate ? 'Recalculate Price' : 'Calculate Price'}
                 </Button>
+                
+                {isEstimatingPrice && (
+                    <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-2 text-sm">Estimating your price...</p>
+                    </div>
+                )}
+                
+                {!isEstimatingPrice && !priceEstimate && (
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-muted/50 rounded-lg">
+                        <IndianRupee className="h-8 w-8 mb-2" />
+                        <p className="text-sm">Click "Calculate Price" to see your transport estimate based on distance and weight.</p>
+                    </div>
+                )}
+
                 {priceEstimate && (
-                  <div className="p-3 border rounded-md bg-background">
-                    <p className="font-semibold text-lg">Estimated Cost: <span className="text-primary">₹{priceEstimate.estimatedPrice.toLocaleString()}</span></p>
-                    <p className="text-sm text-muted-foreground">Distance: {priceEstimate.distanceText || `${priceEstimate.distanceKm} km`}</p>
-                    <p className="text-sm text-muted-foreground">Travel Time: {priceEstimate.durationText || `${priceEstimate.travelTimeHours} hours`}</p>
-                    <p className="text-xs mt-2 text-muted-foreground">Breakdown: {priceEstimate.breakdown}</p>
+                  <div className="space-y-4 pt-4">
+                    <div className="flex justify-between items-baseline">
+                        <span className="text-muted-foreground">Estimated Price</span>
+                        <span className="text-2xl font-bold text-primary">₹{priceEstimate.estimatedPrice.toLocaleString()}</span>
+                    </div>
+                    <Separator />
+                    <div className="space-y-3 text-sm">
+                       <div className="flex justify-between items-center">
+                            <span className="flex items-center text-muted-foreground"><Milestone className="mr-2 h-4 w-4"/> Distance</span>
+                            <span className="font-semibold">{priceEstimate.distanceText || `${priceEstimate.distanceKm} km`}</span>
+                       </div>
+                        <div className="flex justify-between items-center">
+                            <span className="flex items-center text-muted-foreground"><Clock className="mr-2 h-4 w-4"/> Est. Timeline</span>
+                            <span className="font-semibold">{priceEstimate.durationText || `${priceEstimate.travelTimeHours} hours`}</span>
+                       </div>
+                    </div>
+                    <CardDescription className="text-xs pt-2">
+                        Breakdown: {priceEstimate.breakdown}
+                    </CardDescription>
                   </div>
                 )}
+
               </CardContent>
+              <CardFooter>
+                 <Button type="button" onClick={handleSubmit(onSubmit)} className="w-full" disabled={loading || isEstimatingPrice || !priceEstimate}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                  Submit Booking
+                </Button>
+              </CardFooter>
             </Card>
-            
-            <Button type="submit" className="w-full" disabled={loading || isEstimatingPrice}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              Submit Booking Request
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
