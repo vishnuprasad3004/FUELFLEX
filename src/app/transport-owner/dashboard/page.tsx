@@ -6,7 +6,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee } from 'lucide-react';
+import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee, Satellite } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
@@ -91,7 +91,7 @@ const initialDrivers: Driver[] = [
 
 const initialVehicles: Vehicle[] = [
   { 
-    id: 'V01', number: 'KA 01 AB 1234', type: 'Truck', model: 'Tata Ultra T.7', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-03-15'), nextServiceDate: new Date('2024-09-15'), driverId: 'D01', imageUrl: 'https://picsum.photos/seed/truck1/600/400',
+    id: 'V01', number: 'KA 01 AB 1234', type: 'Truck', model: 'Tata Ultra T.7', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-03-15'), nextServiceDate: new Date('2024-09-15'), driverId: 'D01', imageUrl: 'https://picsum.photos/seed/tata-ultra/600/400',
     documents: [
       { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
       { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2025-06-30'), status: 'active' },
@@ -102,7 +102,7 @@ const initialVehicles: Vehicle[] = [
     fuelLevel: 75, mileage: 125000, fastagBalance: 1250,
   },
   {
-    id: 'V02', number: 'MH 12 CD 5678', type: 'Van', model: 'Maruti Suzuki Eeco', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-05-01'), nextServiceDate: new Date('2024-11-01'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/van1/600/400',
+    id: 'V02', number: 'MH 12 CD 5678', type: 'Van', model: 'Maruti Suzuki Eeco', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-05-01'), nextServiceDate: new Date('2024-11-01'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/eeco-van/600/400',
     documents: [
       { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
       { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2025-02-10'), status: 'active' },
@@ -113,16 +113,16 @@ const initialVehicles: Vehicle[] = [
     fuelLevel: 45, mileage: 85000, fastagBalance: 800,
   },
    {
-    id: 'V03', number: 'DL 03 EF 9012', type: 'Car', model: 'Hyundai Verna', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-06-20'), nextServiceDate: new Date('2025-06-20'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/car1/600/400',
+    id: 'V03', number: 'DL 03 EF 9012', type: 'Truck', model: 'Tata LPT 3118 (12-wheeler)', owner: 'FuelFlex Corp', lastServiceDate: new Date('2024-06-20'), nextServiceDate: new Date('2025-06-20'), driverId: 'D02', imageUrl: 'https://picsum.photos/seed/tata-12-wheeler/600/400',
     documents: [
        { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
        { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2024-09-05'), status: 'expiring_soon' },
        { type: 'Pollution', name: 'PUC Certificate', url: '#', expiryDate: new Date('2025-03-10'), status: 'active' },
     ],
-    fuelLevel: 90, mileage: 42000, fastagBalance: 2500,
+    fuelLevel: 90, mileage: 142000, fastagBalance: 2500,
   },
   { 
-    id: 'V04', number: 'TN 22 TR 4018', type: 'Trailer', model: 'Ashok Leyland 3118', owner: 'Southern Carriers', lastServiceDate: new Date('2024-04-10'), nextServiceDate: new Date('2024-10-10'), driverId: undefined, imageUrl: 'https://picsum.photos/seed/trailer1/600/400',
+    id: 'V04', number: 'TN 22 TR 4018', type: 'Trailer', model: 'Ashok Leyland 3118', owner: 'Southern Carriers', lastServiceDate: new Date('2024-04-10'), nextServiceDate: new Date('2024-10-10'), driverId: undefined, imageUrl: 'https://picsum.photos/seed/ashok-leyland-trailer/600/400',
     documents: [
       { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
       { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2025-04-30'), status: 'active' },
@@ -133,7 +133,7 @@ const initialVehicles: Vehicle[] = [
     fuelLevel: 60, mileage: 210000, fastagBalance: 3100,
   },
   { 
-    id: 'V05', number: 'GJ 05 XY 7890', type: 'Tipper', model: 'TATA 4018', owner: 'Western Infra', lastServiceDate: new Date('2024-07-01'), nextServiceDate: new Date('2025-01-01'), driverId: undefined, imageUrl: 'https://picsum.photos/seed/tipper1/600/400',
+    id: 'V05', number: 'GJ 05 XY 7890', type: 'Tipper', model: 'TATA 4018', owner: 'Western Infra', lastServiceDate: new Date('2024-07-01'), nextServiceDate: new Date('2025-01-01'), driverId: undefined, imageUrl: 'https://picsum.photos/seed/tata-tipper/600/400',
     documents: [
       { type: 'RC', name: 'RC Book', url: '#', status: 'active' },
       { type: 'Insurance', name: 'Vehicle Insurance', url: '#', expiryDate: new Date('2024-07-30'), status: 'expired' },
@@ -384,7 +384,7 @@ export default function TransportOwnerDashboardPage() {
                                     <p className="font-semibold text-gray-700 dark:text-gray-300">{vehicle.fuelLevel}%</p>
                                   </div>
                                   <div title="Mileage">
-                                     <MapPin className="h-5 w-5 mx-auto text-gray-400 mb-1"/>
+                                     <Satellite className="h-5 w-5 mx-auto text-gray-400 mb-1"/>
                                      <p className="font-semibold text-gray-700 dark:text-gray-300">{vehicle.mileage.toLocaleString()} km</p>
                                   </div>
                                   <div title="FASTag Balance">
@@ -434,7 +434,7 @@ export default function TransportOwnerDashboardPage() {
                             </CardContent>
                              <CardFooter className="bg-gray-50 dark:bg-gray-800/50 p-3 flex justify-end space-x-2">
                                 <Button variant="outline" size="sm" onClick={() => viewVehicleDetails(vehicle)}>View Documents</Button>
-                                <Button size="sm">Manage Vehicle</Button>
+                                <Button size="sm" onClick={() => viewVehicleDetails(vehicle)}>Manage Vehicle</Button>
                             </CardFooter>
                         </Card>
                     )
