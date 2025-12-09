@@ -1,3 +1,4 @@
+
 // This MUST be the very first line
 'use client';
 
@@ -6,7 +7,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee, Satellite } from 'lucide-react';
+import { Truck, Fuel, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, IndianRupee, Satellite, TrendingUp, ArrowDown, Wallet, Percent } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
@@ -22,6 +23,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+
 
 // --- DATA MODELS ---
 
@@ -142,6 +145,27 @@ const initialVehicles: Vehicle[] = [
     fuelLevel: 80, mileage: 95000, fastagBalance: 500,
   },
 ];
+
+const yearlyRevenueData = [
+    { name: 'Jan', revenue: 400000, expenses: 240000, profit: 160000 },
+    { name: 'Feb', revenue: 300000, expenses: 190000, profit: 110000 },
+    { name: 'Mar', revenue: 500000, expenses: 300000, profit: 200000 },
+    { name: 'Apr', revenue: 450000, expenses: 280000, profit: 170000 },
+    { name: 'May', revenue: 600000, expenses: 350000, profit: 250000 },
+    { name: 'Jun', revenue: 550000, expenses: 320000, profit: 230000 },
+    { name: 'Jul', revenue: 680000, expenses: 400000, profit: 280000 },
+    { name: 'Aug', revenue: 650000, expenses: 380000, profit: 270000 },
+    { name: 'Sep', revenue: 720000, expenses: 420000, profit: 300000 },
+    { name: 'Oct', revenue: 800000, expenses: 450000, profit: 350000 },
+    { name: 'Nov', revenue: 750000, expenses: 430000, profit: 320000 },
+    { name: 'Dec', revenue: 900000, expenses: 500000, profit: 400000 },
+];
+
+const totalRevenue = yearlyRevenueData.reduce((acc, item) => acc + item.revenue, 0);
+const totalExpenses = yearlyRevenueData.reduce((acc, item) => acc + item.expenses, 0);
+const netProfit = totalRevenue - totalExpenses;
+const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
 
 // --- ZOD SCHEMAS for Forms ---
 
@@ -326,6 +350,75 @@ export default function TransportOwnerDashboardPage() {
         </header>
 
         <main className="container mx-auto p-4 md:p-6 lg:p-8">
+            {/* Profit Analytics Dashboard Section */}
+            <section className="mb-8">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Fleet Analytics: Yearly Performance</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                            <Wallet className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</div>
+                            <p className="text-xs text-muted-foreground">+20.1% from last year</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                            <ArrowDown className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">₹{totalExpenses.toLocaleString('en-IN')}</div>
+                            <p className="text-xs text-muted-foreground">Fuel, Tolls, Maintenance, Fines</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">₹{netProfit.toLocaleString('en-IN')}</div>
+                            <p className="text-xs text-muted-foreground">+15.2% from last year</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
+                            <Percent className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{profitMargin.toFixed(2)}%</div>
+                            <p className="text-xs text-muted-foreground">Net Profit / Revenue</p>
+                        </CardContent>
+                    </Card>
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Revenue & Profit Analysis (Yearly)</CardTitle>
+                        <CardDescription>Monthly breakdown of revenue, expenses, and profit.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ResponsiveContainer width="100%" height={350}>
+                            <BarChart data={yearlyRevenueData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+                                <Tooltip formatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`} />
+                                <Legend />
+                                <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
+                                <Bar dataKey="expenses" fill="#82ca9d" name="Expenses" />
+                                <Bar dataKey="profit" fill="#ffc658" name="Profit" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+            </section>
+            
+            <Separator className="my-8" />
+            
             {/* Filter and Search Bar */}
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex flex-col sm:flex-row items-center gap-4">
                 <div className="relative flex-grow w-full">
