@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const mockFirebaseUser: FirebaseUser = {
         uid: 'mock-admin-uid-12345',
-        email: 'jvishnun@gmail.com',
+        email: 'njvishnun@gmail.com',
         displayName: 'Admin User (Vishnu)',
         emailVerified: true,
         isAnonymous: false,
@@ -62,12 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getIdToken: async () => "mock-id-token",
         getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any),
         reload: async () => { console.log("Mock reload called"); },
-        toJSON: () => ({ uid: 'mock-admin-uid-12345', email: 'jvishnun@gmail.com' }),
+        toJSON: () => ({ uid: 'mock-admin-uid-12345', email: 'njvishnun@gmail.com' }),
       } as FirebaseUser; 
 
       const mockUserProfileData: UserProfile = {
         uid: 'mock-admin-uid-12345',
-        email: 'jvishnun@gmail.com',
+        email: 'njvishnun@gmail.com',
         displayName: 'Admin User (Vishnu)',
         role: MOCK_USER_ROLE_FOR_BYPASS,
         createdAt: new Date(),
