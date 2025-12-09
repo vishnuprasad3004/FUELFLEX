@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS MUST be 'false' for production deployment.
 const DEVELOPMENT_BYPASS_AUTH = true; 
-const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.BUYER_SELLER, UserRole.TRANSPORT_OWNER)
+const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.BUYER_SELLER; // Change to test other roles (UserRole.ADMIN, UserRole.TRANSPORT_OWNER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
@@ -47,9 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       const mockFirebaseUser: FirebaseUser = {
-        uid: 'mock-admin-uid-12345',
-        email: 'njvishnun@gmail.com',
-        displayName: 'Admin User (Bypass)',
+        uid: 'mock-user-uid-67890',
+        email: 'client@example.com',
+        displayName: 'Client User (Bypass)',
         emailVerified: true,
         isAnonymous: false,
         metadata: {} as any, 
@@ -62,13 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getIdToken: async () => "mock-id-token",
         getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any),
         reload: async () => { console.log("Mock reload called"); },
-        toJSON: () => ({ uid: 'mock-admin-uid-12345', email: 'njvishnun@gmail.com' }),
+        toJSON: () => ({ uid: 'mock-user-uid-67890', email: 'client@example.com' }),
       } as FirebaseUser; 
 
       const mockUserProfileData: UserProfile = {
-        uid: 'mock-admin-uid-12345',
-        email: 'njvishnun@gmail.com',
-        displayName: 'Admin User (Bypass)',
+        uid: 'mock-user-uid-67890',
+        email: 'client@example.com',
+        displayName: 'Client User (Bypass)',
         role: MOCK_USER_ROLE_FOR_BYPASS,
         createdAt: new Date(),
         updatedAt: new Date(),
