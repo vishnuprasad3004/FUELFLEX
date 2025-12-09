@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect } from 'react';
@@ -30,12 +31,20 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
       return; 
     }
 
-    // In development bypass mode, we skip all checks. This assumes the mock user
-    // has the correct role for the page they are on.
-    if (DEVELOPMENT_BYPASS_AUTH_REDIRECT) {
+    // In development bypass mode, we just redirect to the correct dashboard based on the mocked role.
+    if (DEVELOPMENT_BYPASS_AUTH_REDIRECT && currentUser) {
+      const currentPath = window.location.pathname;
+      if (isAdmin && !currentPath.startsWith('/admin')) {
+          router.push('/admin/dashboard');
+      } else if (isTransportOwner && !currentPath.startsWith('/transport-owner')) {
+          router.push('/transport-owner/dashboard');
+      } else if (isBuyerSeller && !(currentPath.startsWith('/marketplace') || currentPath === '/')) {
+         // Allow root and marketplace for buyer/seller
+         router.push('/marketplace');
+      }
       return;
     }
-
+    
     // --- LOGIC FOR REAL AUTHENTICATION (Bypass is false) ---
 
     // Redirect authenticated users away from public pages like login/register.
@@ -67,7 +76,7 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, userProfile, loading, router, options.requireAuth, options.requireRole, options.redirectIfAuthenticated]);
+  }, [currentUser, userProfile, loading, router]);
 
   return { currentUser, userProfile, loading };
 }

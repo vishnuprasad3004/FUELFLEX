@@ -3,7 +3,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { createUserProfile, getUserProfile, type UserProfile } from '@/services/user-service'; 
@@ -17,6 +17,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isTransportOwner: boolean;
   isBuyerSeller: boolean;
+  // This function will be used by the dev role switcher
+  setMockUserRole?: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS MUST be 'false' for production deployment.
 const DEVELOPMENT_BYPASS_AUTH = true; 
-const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.BUYER_SELLER; // Change to test other roles (UserRole.ADMIN, UserRole.TRANSPORT_OWNER)
+const INITIAL_MOCK_ROLE: UserRole = UserRole.BUYER_SELLER; // Initial role on load
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
@@ -34,22 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Add state for the mock role to allow dynamic switching
+  const [mockRole, setMockRole] = useState<UserRole>(INITIAL_MOCK_ROLE);
 
-  useEffect(() => {
-    if (DEVELOPMENT_BYPASS_AUTH) {
-      console.warn(
-        `%cAUTH BYPASS ACTIVE: Mocking user with role: ${MOCK_USER_ROLE_FOR_BYPASS}`,
+  const setupMockUser = useCallback((role: UserRole) => {
+     console.warn(
+        `%cAUTH BYPASS ACTIVE: Mocking user with role: ${role}`,
         "color: orange; font-weight: bold; font-size: 14px;"
       );
-      console.warn(
-        `%cEnsure Firebase API keys in .env are correct for actual Firebase functionality. This bypass is for UI navigation only.`,
-        "color: orange; font-size: 12px;"
-      );
-      
       const mockFirebaseUser: FirebaseUser = {
         uid: 'mock-user-uid-67890',
-        email: 'client@example.com',
-        displayName: 'Client User (Bypass)',
+        email: `${role}@example.com`,
+        displayName: `${role.charAt(0).toUpperCase() + role.slice(1).replace('_', '/')} User (Bypass)`,
         emailVerified: true,
         isAnonymous: false,
         metadata: {} as any, 
@@ -62,14 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getIdToken: async () => "mock-id-token",
         getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any),
         reload: async () => { console.log("Mock reload called"); },
-        toJSON: () => ({ uid: 'mock-user-uid-67890', email: 'client@example.com' }),
+        toJSON: () => ({ uid: 'mock-user-uid-67890', email: `${role}@example.com` }),
       } as FirebaseUser; 
 
       const mockUserProfileData: UserProfile = {
         uid: 'mock-user-uid-67890',
-        email: 'client@example.com',
-        displayName: 'Client User (Bypass)',
-        role: MOCK_USER_ROLE_FOR_BYPASS,
+        email: `${role}@example.com`,
+        displayName: `${role.charAt(0).toUpperCase() + role.slice(1).replace('_', '/')} User (Bypass)`,
+        role: role,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -77,6 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUser(mockFirebaseUser);
       setUserProfile(mockUserProfileData);
       setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (DEVELOPMENT_BYPASS_AUTH) {
+      setupMockUser(mockRole);
       return () => {}; // No-op for unsubscribe in bypass mode
     }
 
@@ -120,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []); 
+  }, [mockRole, setupMockUser]); 
 
   const isAdmin = userProfile?.role === UserRole.ADMIN;
   const isTransportOwner = userProfile?.role === UserRole.TRANSPORT_OWNER;
@@ -134,9 +137,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  
+  // Conditionally provide the setMockUserRole function
+  const contextValue: AuthContextType = DEVELOPMENT_BYPASS_AUTH
+    ? { currentUser, userProfile, loading, isAdmin, isTransportOwner, isBuyerSeller, setMockUserRole: setMockRole }
+    : { currentUser, userProfile, loading, isAdmin, isTransportOwner, isBuyerSeller };
 
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading, isAdmin, isTransportOwner, isBuyerSeller }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

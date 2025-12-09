@@ -7,9 +7,43 @@ import { Button } from '@/components/ui/button';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { useRouter } from 'next/navigation';
-import { LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingCart, TruckIcon, UserCog, HomeIcon } from 'lucide-react';
+import { LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingCart, TruckIcon, UserCog, HomeIcon, Users, Settings } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { useToast } from "@/components/ui/use-toast";
+import { UserRole } from '@/models/user';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+// This is a development-only component. It will not be rendered in production.
+const DevRoleSwitcher = () => {
+  const { setMockUserRole, userProfile } = useAuth();
+  
+  if (process.env.NODE_ENV !== 'development' || !setMockUserRole) {
+    return null;
+  }
+
+  const handleRoleChange = (role: UserRole) => {
+    setMockUserRole(role);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="destructive" size="sm" className="h-8">
+            <Users className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Role: {userProfile?.role.replace('_', '/')}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuLabel>Switch Mock Role</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleRoleChange(UserRole.BUYER_SELLER)}>Client / Buyer</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleRoleChange(UserRole.TRANSPORT_OWNER)}>Transport Owner</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleRoleChange(UserRole.ADMIN)}>Admin</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 
 export default function Navbar() {
   const { currentUser, userProfile, isAdmin, isTransportOwner, isBuyerSeller } = useAuth();
@@ -20,7 +54,6 @@ export default function Navbar() {
     try {
       await signOut(auth);
       // Force a hard reload to the login page to ensure all state is cleared.
-      // This is more robust than a soft navigation with router.push().
       window.location.href = '/login';
       toast({
         title: "Signed Out",
@@ -44,49 +77,46 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center space-x-2 sm:space-x-4">
-          <Link href="/" legacyBehavior passHref>
-            <Button variant="ghost" className="text-sm sm:text-base">
-              <HomeIcon className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Home
-            </Button>
-          </Link>
+          <DevRoleSwitcher />
           {currentUser ? (
             <>
               {isBuyerSeller && (
-                <Link href="/marketplace" legacyBehavior passHref>
-                  <Button variant="ghost" className="text-sm sm:text-base">
-                    <ShoppingCart className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Marketplace
+                 <Link href="/marketplace" legacyBehavior passHref>
+                  <Button variant="ghost" className="hidden sm:flex">
+                    <ShoppingCart className="mr-2 h-5 w-5" /> Marketplace
                   </Button>
                 </Link>
               )}
               {isTransportOwner && (
                 <Link href="/transport-owner/dashboard" legacyBehavior passHref>
-                  <Button variant="ghost" className="text-sm sm:text-base">
-                     <TruckIcon className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Owner Dashboard
+                  <Button variant="ghost" className="hidden sm:flex">
+                     <TruckIcon className="mr-2 h-5 w-5" /> Owner Dashboard
                   </Button>
                 </Link>
               )}
               {isAdmin && (
                 <Link href="/admin/dashboard" legacyBehavior passHref>
-                  <Button variant="ghost" className="text-sm sm:text-base">
-                    <UserCog className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Admin Dashboard
+                  <Button variant="ghost" className="hidden sm:flex">
+                    <UserCog className="mr-2 h-5 w-5" /> Admin Dashboard
                   </Button>
                 </Link>
               )}
-              <Button onClick={handleSignOut} variant="outline" className="text-sm sm:text-base">
-                <LogOut className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Sign Out
+              <Button onClick={handleSignOut} variant="outline" size="sm">
+                <LogOut className="mr-1 h-4 w-4 sm:mr-2" /> 
+                <span className="hidden sm:inline">Sign Out</span>
               </Button>
-              {userProfile?.displayName && <span className="text-sm text-muted-foreground hidden sm:inline">Hi, {userProfile.displayName}</span>}
+              {userProfile?.displayName && <span className="text-sm text-muted-foreground hidden lg:inline">Hi, {userProfile.displayName}</span>}
             </>
           ) : (
             <>
               <Link href="/login" legacyBehavior passHref>
-                <Button variant="ghost" className="text-sm sm:text-base">
-                  <LogIn className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" /> Login
+                <Button variant="ghost">
+                  <LogIn className="mr-2 h-5 w-5" /> Login
                 </Button>
               </Link>
               <Link href="/create-account" legacyBehavior passHref>
-                <Button className="text-sm sm:text-base">
-                  <UserPlus className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm-w-5" /> Create Account
+                <Button>
+                  <UserPlus className="mr-2 h-5 w-5" /> Create Account
                 </Button>
               </Link>
             </>
