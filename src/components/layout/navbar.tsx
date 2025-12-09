@@ -8,6 +8,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { useRouter } from 'next/navigation';
 import { LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingCart, TruckIcon, UserCog, HomeIcon } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 // import Image from 'next/image'; // Logo removed
 
 export default function Navbar() {
@@ -81,6 +82,7 @@ export default function Navbar() {
               </Link>
             </>
           )}
+           <ThemeToggle />
         </div>
       </div>
     </nav>
