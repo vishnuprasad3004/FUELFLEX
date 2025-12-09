@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
 const DEVELOPMENT_BYPASS_AUTH = true; 
-const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.TRANSPORT_OWNER; // Change to test other roles (UserRole.ADMIN, UserRole.BUYER_SELLER)
+const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.ADMIN, UserRole.BUYER_SELLER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
@@ -46,9 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       const mockFirebaseUser: FirebaseUser = {
-        uid: 'mock-dev-user-uid',
-        email: `dev-${MOCK_USER_ROLE_FOR_BYPASS}@example.com`,
-        displayName: `Dev ${MOCK_USER_ROLE_FOR_BYPASS.replace('_',' ')}`,
+        uid: 'mock-admin-user-uid',
+        email: 'njvishnun@gmail.com',
+        displayName: 'Vishnu N',
         emailVerified: true,
         isAnonymous: false,
         metadata: {} as any, // Cast to any for simplicity if issues arise with specific metadata structure
@@ -61,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getIdToken: async () => "mock-id-token",
         getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any), // Cast for simplicity
         reload: async () => { console.log("Mock reload called"); },
-        toJSON: () => ({ uid: 'mock-dev-user-uid', email: `dev-${MOCK_USER_ROLE_FOR_BYPASS}@example.com` }),
+        toJSON: () => ({ uid: 'mock-admin-user-uid', email: 'njvishnun@gmail.com' }),
       } as FirebaseUser; 
 
       const mockUserProfileData: UserProfile = {
-        uid: 'mock-dev-user-uid',
-        email: `dev-${MOCK_USER_ROLE_FOR_BYPASS}@example.com`,
-        displayName: `Dev ${MOCK_USER_ROLE_FOR_BYPASS.replace('_',' ')} User`,
+        uid: 'mock-admin-user-uid',
+        email: 'njvishnun@gmail.com',
+        displayName: 'Vishnu N (Admin)',
         role: MOCK_USER_ROLE_FOR_BYPASS,
         createdAt: new Date(),
         updatedAt: new Date(),
