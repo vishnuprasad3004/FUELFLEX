@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const mockFirebaseUser: FirebaseUser = {
         uid: 'mock-admin-uid-12345',
         email: 'njvishnun@gmail.com',
-        displayName: 'Admin User (Vishnu)',
+        displayName: 'Admin User (Bypass)',
         emailVerified: true,
         isAnonymous: false,
         metadata: {} as any, 
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const mockUserProfileData: UserProfile = {
         uid: 'mock-admin-uid-12345',
         email: 'njvishnun@gmail.com',
-        displayName: 'Admin User (Vishnu)',
+        displayName: 'Admin User (Bypass)',
         role: MOCK_USER_ROLE_FOR_BYPASS,
         createdAt: new Date(),
         updatedAt: new Date(),
