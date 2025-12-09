@@ -8,7 +8,7 @@ import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/firebase/firebase-config';
 import { getUserProfile, type UserProfile } from '@/services/user-service'; 
 import { Loader2 } from 'lucide-react';
-import { UserRole } from '@/models/user'; // Added import for UserRole
+import { UserRole } from '@/models/user'; 
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -25,8 +25,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // SET TO true TO BYPASS AUTH AND MOCK A USER.
 // SET TO false FOR NORMAL AUTHENTICATION.
 // WARNING: THIS IS FOR DEVELOPMENT ONLY. ENSURE IT'S false FOR PRODUCTION.
-const DEVELOPMENT_BYPASS_AUTH = false; 
-const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.TRANSPORT_OWNER; // Change to test other roles (UserRole.ADMIN, UserRole.BUYER_SELLER)
+const DEVELOPMENT_BYPASS_AUTH = true; 
+const MOCK_USER_ROLE_FOR_BYPASS: UserRole = UserRole.ADMIN; // Change to test other roles (UserRole.BUYER_SELLER, UserRole.TRANSPORT_OWNER)
 // --- END DEVELOPMENT BYPASS CONTROL ---
 
 
@@ -47,9 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       const mockFirebaseUser: FirebaseUser = {
-        uid: 'mock-user-uid-transport-owner',
-        email: 'owner@example.com',
-        displayName: 'Mock Transport Owner',
+        uid: 'mock-admin-uid-12345',
+        email: 'jvishnun@gmail.com',
+        displayName: 'Admin User (Vishnu)',
         emailVerified: true,
         isAnonymous: false,
         metadata: {} as any, 
@@ -62,13 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getIdToken: async () => "mock-id-token",
         getIdTokenResult: async () => ({ token: "mock-id-token", claims: {}, authTime: "", expirationTime: "", issuedAtTime: "", signInProvider: null, signInSecondFactor: null } as any),
         reload: async () => { console.log("Mock reload called"); },
-        toJSON: () => ({ uid: 'mock-user-uid-transport-owner', email: 'owner@example.com' }),
+        toJSON: () => ({ uid: 'mock-admin-uid-12345', email: 'jvishnun@gmail.com' }),
       } as FirebaseUser; 
 
       const mockUserProfileData: UserProfile = {
-        uid: 'mock-user-uid-transport-owner',
-        email: 'owner@example.com',
-        displayName: 'Mock Transport Owner',
+        uid: 'mock-admin-uid-12345',
+        email: 'jvishnun@gmail.com',
+        displayName: 'Admin User (Vishnu)',
         role: MOCK_USER_ROLE_FOR_BYPASS,
         createdAt: new Date(),
         updatedAt: new Date(),
