@@ -7,7 +7,7 @@ import { useAuthRedirect } from '@/hooks/use-auth-redirect';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal } from 'lucide-react';
+import { Truck, Fuel, MapPin, Wrench, ShieldCheck, ShieldAlert, User, Calendar, Phone, Car, Bike, RefreshCw, PlusCircle, Loader2, UploadCloud, FileText, Search, X, Star, UserCheck, Shield, BookUser, FileType, CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
